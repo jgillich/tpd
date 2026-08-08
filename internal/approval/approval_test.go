@@ -616,6 +616,60 @@ func TestFilterNewItemsNotPriorApprovedOnFirstRun(t *testing.T) {
 	}
 }
 
+func TestFilterContributorSwapDoesNotPrompt(t *testing.T) {
+	mounts := map[string]profile.Mount{"~/.ssh": {Source: "~/.ssh"}}
+	approved := profile.Resolved{
+		Profile:  profile.Profile{Mounts: mounts},
+		Prov:     profile.Provenance{Mounts: map[string]profile.Contributor{"~/.ssh": {FullName: "core/creds/ssh", Namespace: "core"}}},
+		FullName: "myagent",
+	}
+	// Approved once under the values-only hash; the same grant now comes
+	// from a different contributor → no prompt.
+	store := &memStore{state: map[string]State{
+		"myagent": {Hash: ComputeApprovalHash(approved), Approved: map[string]ApprovedField{
+			"mounts": {Keys: []string{"~/.ssh"}},
+		}},
+	}}
+	swapped := profile.Resolved{
+		Profile:  profile.Profile{Mounts: mounts},
+		Prov:     profile.Provenance{Mounts: map[string]profile.Contributor{"~/.ssh": {FullName: "github.com/foo/ssh", Namespace: "github.com/foo"}}},
+		FullName: "myagent",
+	}
+	_, req, err := Filter(swapped, store)
+	if err != nil {
+		t.Fatalf("Filter: %v", err)
+	}
+	if len(req.Items) != 0 {
+		t.Errorf("contributor swap should not prompt, got %d items", len(req.Items))
+	}
+}
+
+func TestFilterValueChangeStillPrompts(t *testing.T) {
+	core := profile.Contributor{FullName: "core/creds/ssh", Namespace: "core"}
+	approved := profile.Resolved{
+		Profile:  profile.Profile{Mounts: map[string]profile.Mount{"~/.ssh": {Source: "~/.ssh", ReadOnly: true}}},
+		Prov:     profile.Provenance{Mounts: map[string]profile.Contributor{"~/.ssh": core}},
+		FullName: "myagent",
+	}
+	store := &memStore{state: map[string]State{
+		"myagent": {Hash: ComputeApprovalHash(approved), Approved: map[string]ApprovedField{
+			"mounts": {Keys: []string{"~/.ssh"}},
+		}},
+	}}
+	changed := profile.Resolved{
+		Profile:  profile.Profile{Mounts: map[string]profile.Mount{"~/.ssh": {Source: "~/.ssh", ReadOnly: false}}},
+		Prov:     profile.Provenance{Mounts: map[string]profile.Contributor{"~/.ssh": core}},
+		FullName: "myagent",
+	}
+	_, req, err := Filter(changed, store)
+	if err != nil {
+		t.Fatalf("Filter: %v", err)
+	}
+	if len(req.Items) != 1 || !req.Items[0].PriorApproved {
+		t.Errorf("value change should re-prompt with PriorApproved, got %+v", req.Items)
+	}
+}
+
 func TestFilterPromptItemMetadata(t *testing.T) {
 	core := profile.Contributor{FullName: "core/gui", Namespace: "core"}
 	res := profile.Resolved{

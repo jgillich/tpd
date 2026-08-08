@@ -29,12 +29,25 @@ func TestHashStableForSameContent(t *testing.T) {
 	}
 }
 
-func TestHashChangesOnContributorSwap(t *testing.T) {
+func TestHashStableOnContributorSwap(t *testing.T) {
 	mounts := map[string]profile.Mount{"~/.ssh": {Source: "~/.ssh"}}
-	a := makeResolvedWithMounts(mounts, profile.Contributor{FullName: "core/creds/ssh", Namespace: "core"})
-	b := makeResolvedWithMounts(mounts, profile.Contributor{FullName: "github.com/foo/ssh", Namespace: "github.com/foo"})
-	if ComputeApprovalHash(a) == ComputeApprovalHash(b) {
-		t.Error("hash should differ when contributor identity differs")
+	base := ComputeApprovalHash(makeResolvedWithMounts(mounts, profile.Contributor{FullName: "core/creds/ssh", Namespace: "core"}))
+	for _, c := range []profile.Contributor{
+		{FullName: "core/creds/git", Namespace: "core"},
+		{FullName: "github.com/foo/ssh", Namespace: "github.com/foo"},
+	} {
+		if got := ComputeApprovalHash(makeResolvedWithMounts(mounts, c)); got != base {
+			t.Errorf("contributor swap changed hash for %s: %q vs %q", c.FullName, got, base)
+		}
+	}
+}
+
+func TestHashChangesOnGatedToUserSwap(t *testing.T) {
+	mounts := map[string]profile.Mount{"~/.ssh": {Source: "~/.ssh"}}
+	gated := ComputeApprovalHash(makeResolvedWithMounts(mounts, profile.Contributor{FullName: "core/creds/ssh", Namespace: "core"}))
+	trusted := ComputeApprovalHash(makeResolvedWithMounts(mounts, profile.Contributor{FullName: "myagent", Namespace: ""}))
+	if gated == trusted {
+		t.Error("hash should change when a grant moves between a gated and a trusted contributor (the gated set changed)")
 	}
 }
 

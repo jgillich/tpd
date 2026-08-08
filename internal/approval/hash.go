@@ -11,16 +11,17 @@ import (
 )
 
 // ComputeApprovalHash returns a 12-hex-char hash of the non-user
-// gated fields of res, pre-template-expansion. Contributor identity
-// (FullName + Namespace) is included so approvals don't silently
-// transfer across contributors with identical field values.
+// gated fields of res, pre-template-expansion. The hash fingerprints the
+// granted values only — contributor identity is excluded — so a grant
+// moving between contributors (e.g. a tpd catalog refactor) does not
+// re-prompt, while any value or key change does.
 func ComputeApprovalHash(res profile.Resolved) string {
 	h := sha256.New()
 	emit := func(field, key string, c profile.Contributor, value string) {
 		if c.Trusted() {
 			return
 		}
-		fmt.Fprintf(h, "%s\n%s\n%s\n%s\n%s\n", field, key, c.FullName, c.Namespace, value)
+		fmt.Fprintf(h, "%s\n%s\n%s\n", field, key, value)
 	}
 
 	for _, k := range sortedKeys(res.Mounts) {
@@ -57,7 +58,7 @@ func ComputeApprovalHash(res profile.Resolved) string {
 		if c.Trusted() {
 			continue
 		}
-		fmt.Fprintf(h, "services\n%s\n%s\n%s\n%s\n", svcName, c.FullName, c.Namespace, renderServiceDefinition(svc))
+		fmt.Fprintf(h, "services\n%s\n%s\n", svcName, renderServiceDefinition(svc))
 	}
 	sum := h.Sum(nil)
 	return hex.EncodeToString(sum[:])[:12]
