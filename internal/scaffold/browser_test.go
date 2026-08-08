@@ -1,6 +1,7 @@
 package scaffold
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -57,7 +58,7 @@ func TestFragmentNavItemLabels(t *testing.T) {
 
 func TestFolderNavEnterExpandsFolder(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go", "toolchain/javascript", "vcs/git"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	if len(m.list.VisibleItems()) != 2 {
 		t.Fatalf("initial rows = %d, want 2", len(m.list.VisibleItems()))
 	}
@@ -79,7 +80,7 @@ func TestFolderNavEnterExpandsFolder(t *testing.T) {
 
 func TestFolderNavEnterCollapsesFolder(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go", "toolchain/javascript"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = u.(folderNavModel)
 	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -94,7 +95,7 @@ func TestFolderNavEnterCollapsesFolder(t *testing.T) {
 
 func TestFolderNavSpaceTogglesFragment(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go", "toolchain/javascript"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = u.(folderNavModel)
 	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -113,7 +114,7 @@ func TestFolderNavSpaceTogglesFragment(t *testing.T) {
 
 func TestFolderNavSpaceExpandsFolder(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeySpace})
 	m = updated.(folderNavModel)
 	if !m.expanded["toolchain"] {
@@ -129,7 +130,7 @@ func TestFolderNavSpaceExpandsFolder(t *testing.T) {
 
 func TestFolderNavEnterTogglesFragment(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = u.(folderNavModel)
 	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -151,7 +152,7 @@ func TestFolderNavEnterTogglesFragment(t *testing.T) {
 
 func TestFolderNavTabFocusesDone(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = updated.(folderNavModel)
 	if !m.focused {
@@ -165,7 +166,7 @@ func TestFolderNavTabFocusesDone(t *testing.T) {
 
 func TestFolderNavTabTogglesBackToList(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = updated.(folderNavModel)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
@@ -176,7 +177,7 @@ func TestFolderNavTabTogglesBackToList(t *testing.T) {
 
 func TestFolderNavEscCancels(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	if res := updated.(folderNavModel).result; res != browserCancel {
 		t.Errorf("esc = %q, want %s", res, browserCancel)
@@ -185,16 +186,126 @@ func TestFolderNavEscCancels(t *testing.T) {
 
 func TestFolderNavCtrlCCancels(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if res := updated.(folderNavModel).result; res != browserCancel {
 		t.Errorf("ctrl+c = %q, want %s", res, browserCancel)
 	}
 }
 
+func TestFolderNavDetailsOpensAndCloses(t *testing.T) {
+	nav := buildFragmentNav([]string{"toolchain/go", "toolchain/javascript"}, nil)
+	contents := map[string]string{"toolchain/go": "caches:\n  go: ~/go\ntools:\n  go: latest\n"}
+	m := newFolderNavModel("Folder", nav, contents)
+	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // expand toolchain
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown}) // highlight toolchain/go
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m = u.(folderNavModel)
+	if !m.inspecting {
+		t.Fatal("d should open the details popup on a fragment")
+	}
+	v := stripANSI(m.View())
+	for _, want := range []string{"toolchain/go", "caches:", "go: ~/go", "tools:", "go: latest"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("details view missing %q\n%s", want, v)
+		}
+	}
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = u.(folderNavModel)
+	if m.inspecting {
+		t.Error("esc should close the details popup")
+	}
+	if !strings.Contains(stripANSI(m.View()), "▾ toolchain") {
+		t.Error("list should render again after closing details")
+	}
+}
+
+func TestFolderNavDetailsIgnoresFolders(t *testing.T) {
+	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
+	m := newFolderNavModel("Folder", nav, map[string]string{"toolchain/go": "caches:\n  go: ~/go\n"})
+	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}) // cursor on the folder
+	m = u.(folderNavModel)
+	if m.inspecting {
+		t.Error("d on a folder must not open a details popup")
+	}
+}
+
+func TestFolderNavDetailsCtrlCCancels(t *testing.T) {
+	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
+	m := newFolderNavModel("Folder", nav, map[string]string{"toolchain/go": "caches:\n  go: ~/go\n"})
+	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // expand toolchain
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown}) // highlight the fragment
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m = u.(folderNavModel)
+	if !m.inspecting {
+		t.Fatal("d should open the details popup")
+	}
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	m = u.(folderNavModel)
+	if m.result != browserCancel || !m.done {
+		t.Error("ctrl+c from the details popup should cancel the browser")
+	}
+}
+
+func TestFolderNavDetailsScrolls(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("version: 1\n")
+	for i := 1; i <= 20; i++ {
+		fmt.Fprintf(&b, "line: %d\n", i)
+	}
+	nav := buildFragmentNav([]string{"toolchain/go"}, nil)
+	m := newFolderNavModel("Folder", nav, map[string]string{"toolchain/go": b.String()})
+	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // expand toolchain
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown}) // highlight the fragment
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m = u.(folderNavModel)
+	if v := stripANSI(m.View()); !strings.Contains(v, "↑/↓ scroll") {
+		t.Fatalf("overflowing fragment should show a scroll hint\n%s", v)
+	}
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = u.(folderNavModel)
+	if m.detailScroll == 0 {
+		t.Error("down should scroll the details")
+	}
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = u.(folderNavModel)
+	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = u.(folderNavModel)
+	if m.detailScroll != 0 {
+		t.Error("up should scroll back toward the top")
+	}
+}
+
+func TestRootFragmentsAlignWithFolders(t *testing.T) {
+	nav := buildFragmentNav([]string{"toolchain/go", "defaults"}, nil)
+	m := newFolderNavModel("Folder", nav, nil)
+	rowCol := func(sub string) int {
+		for _, l := range strings.Split(stripANSI(m.View()), "\n") {
+			if i := strings.Index(l, sub); i >= 0 {
+				return i
+			}
+		}
+		return -1
+	}
+	folderCol := rowCol("▸ toolchain")
+	fragCol := rowCol("• defaults")
+	if folderCol < 0 || fragCol < 0 {
+		t.Fatalf("missing rows: folder=%d fragment=%d\n%s", folderCol, fragCol, m.View())
+	}
+	if fragCol != folderCol {
+		t.Errorf("root fragment should align with folders: folder at %d, fragment at %d", folderCol, fragCol)
+	}
+}
+
 func TestFolderNavDelegateMarkers(t *testing.T) {
 	nav := buildFragmentNav([]string{"toolchain/go", "toolchain/javascript", "vcs/git"}, nil)
-	m := newFolderNavModel("Folder", nav)
+	m := newFolderNavModel("Folder", nav, nil)
 	u, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // expand toolchain
 	m = u.(folderNavModel)
 	u, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown}) // highlight toolchain/go

@@ -357,6 +357,36 @@ func TestApprovalModelDetailsShowsValueForPlainItems(t *testing.T) {
 	}
 }
 
+func TestApprovalModelDetailsScrolls(t *testing.T) {
+	var body strings.Builder
+	for i := 0; i < 25; i++ {
+		fmt.Fprintf(&body, "line %d\n", i)
+	}
+	req := PromptRequest{ProfileName: "bash", Items: []GatedItem{
+		{Field: "services", Key: "podman", Value: "v", Source: testContrib(), Detail: "privileged", Body: body.String()},
+	}}
+	m := newApprovalModel(req)
+	m = pump(t, m, tea.WindowSizeMsg{Width: 120, Height: 30})
+	m = pump(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if v := stripANSI(m.View()); !strings.Contains(v, "↑/↓ scroll") {
+		t.Fatalf("overflowing body should show a scroll hint\n%s", v)
+	}
+	for i := 0; i < 30; i++ {
+		m = pump(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	if m.detailScroll == 0 {
+		t.Fatal("down should scroll the details")
+	}
+	max := m.detailScroll
+	m = pump(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	if m.detailScroll != max {
+		t.Errorf("down past the end should clamp, got %d want %d", m.detailScroll, max)
+	}
+	if v := stripANSI(m.View()); !strings.Contains(v, "line 24") {
+		t.Errorf("bottom of the body should be reachable\n%s", v)
+	}
+}
+
 func TestApprovalModelDetailsCtrlCCancels(t *testing.T) {
 	req := PromptRequest{ProfileName: "bash", Items: []GatedItem{
 		{Field: "mounts", Key: "~/.ssh", Value: "~/.ssh", Source: testContrib(), Detail: "read-only"},

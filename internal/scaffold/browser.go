@@ -13,8 +13,9 @@ const (
 	browserCancel = "__cancel__"
 )
 
-// errNavCancelled reports that the user cancelled the folder navigation.
-var errNavCancelled = errors.New("fragment selection cancelled")
+// errSelectionCancelled reports that the user cancelled a picker (the folder
+// navigation or a profile/base picker), aborting the wizard.
+var errSelectionCancelled = errors.New("selection cancelled")
 
 // fragmentNav is the folder → fragments structure backing the picker. Fragments
 // are grouped by their first path segment; names without a "/" sit at the root.
@@ -26,14 +27,15 @@ type fragmentNav struct {
 
 // promptFragmentsBrowserHuh runs the folder-structured fragment picker: one
 // screen of folders whose fragments expand inline below them (Enter toggles a
-// folder, Space toggles a fragment). The picked display names are returned
-// sorted; cancelling returns errNavCancelled.
-func promptFragmentsBrowserHuh(fragNames []string, descs map[string]string, stdin io.Reader, stdout io.Writer) ([]string, error) {
+// folder, Space toggles a fragment, d opens the highlighted fragment's YAML in
+// a details popup). The picked display names are returned sorted; cancelling
+// returns errSelectionCancelled.
+func promptFragmentsBrowserHuh(fragNames []string, descs map[string]string, contents map[string]string, stdin io.Reader, stdout io.Writer) ([]string, error) {
 	nav := buildFragmentNav(fragNames, descs)
 	if len(nav.folders) == 0 && len(nav.topFrags) == 0 {
 		return nil, nil
 	}
-	return runFolderNav(nav, stdin, stdout)
+	return runFolderNav(nav, contents, stdin, stdout)
 }
 
 // buildFragmentNav groups the fragment display names into the flat two-level

@@ -105,15 +105,17 @@ func Run(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.W
 			return fmt.Errorf("profile name is required")
 		}
 		if tty {
-			selection, err := promptProfileHuh(builtinProfiles, catalogDescriptions(builtinCat, builtinProfiles), stdin, stdout)
+			selection, err := promptProfilePicker(builtinProfiles, catalogDescriptions(builtinCat, builtinProfiles), catalogContents(builtinCat, builtinProfiles), stdin, stdout)
 			if err != nil {
 				return err
 			}
 			if selection == newProfileOption {
-				profileName, bases, err = promptNewProfileHuh(baseNames, catalogDescriptions(cat, baseNames), stdin, stdout)
+				var base string
+				profileName, base, err = promptNewProfileTUI(baseNames, catalogDescriptions(cat, baseNames), catalogContents(cat, baseNames), stdin, stdout)
 				if err != nil {
 					return err
 				}
+				bases = []string{base}
 			} else {
 				profileName = selection
 			}
@@ -187,7 +189,7 @@ func Run(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.W
 		fragNames := cat.FragmentDisplayNames()
 		var picked []string
 		if tty {
-			p, err := promptFragmentsBrowserHuh(fragNames, catalogDescriptions(cat, fragNames), stdin, stdout)
+			p, err := promptFragmentsBrowserHuh(fragNames, catalogDescriptions(cat, fragNames), catalogContents(cat, fragNames), stdin, stdout)
 			if err != nil {
 				return err
 			}
@@ -474,6 +476,29 @@ func catalogDescriptions(cat profile.Catalog, names []string) map[string]string 
 	return descs
 }
 
+// catalogContents maps display names to their raw YAML contents for the
+// wizard's details popup. An entry that fails to marshal is absent, so the
+// detail key silently does nothing for it.
+func catalogContents(cat profile.Catalog, names []string) map[string]string {
+	contents := map[string]string{}
+	for _, dn := range names {
+		key, ok := resolveCatalogName(cat, dn)
+		if !ok {
+			continue
+		}
+		rc, ok := cat.Get(key)
+		if !ok {
+			continue
+		}
+		data, err := yaml.Marshal(rc.Profile)
+		if err != nil {
+			continue
+		}
+		contents[dn] = string(data)
+	}
+	return contents
+}
+
 // metaLabel renders a wizard option label. huh (v1.0.0 and upstream) has no
 // per-option descriptions, so the description rides in the label; the / filter
 // then searches it too.
@@ -484,53 +509,25 @@ func metaLabel(name string, descs map[string]string) string {
 	return name
 }
 
-func promptProfileHuh(names []string, descs map[string]string, stdin io.Reader, stdout io.Writer) (string, error) {
-	var selected string
-	opts := []huh.Option[string]{huh.NewOption(newProfileOption, newProfileOption)}
+// promptProfilePicker shows the built-in profile picker. "New" is the first
+// option; d opens the highlighted profile's YAML in a details popup.
+func promptProfilePicker(names []string, descs map[string]string, contents map[string]string, stdin io.Reader, stdout io.Writer) (string, error) {
+	options := []pickerItem{{label: newProfileOption, value: newProfileOption}}
 	for _, n := range names {
-		opts = append(opts, huh.NewOption(metaLabel(n, descs), n))
+		options = append(options, pickerItem{label: metaLabel(n, descs), value: n})
 	}
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select a built-in profile").
-				Options(opts...).
-				Value(&selected),
-		),
-	).WithInput(stdin).WithOutput(stdout)
-	if err := form.Run(); err != nil {
-		return "", err
-	}
-	return selected, nil
+	return runPicker("Select a built-in profile", options, contents, stdin, stdout)
 }
 
-func promptNewProfileHuh(baseNames []string, descs map[string]string, stdin io.Reader, stdout io.Writer) (string, []string, error) {
-	var name string
-	var base string
-	opts := make([]huh.Option[string], len(baseNames))
+// promptNewProfileTUI shows the new-profile screen: a name input and a
+// single-select base list. It returns the typed name and the selected base
+// display name.
+func promptNewProfileTUI(baseNames []string, descs map[string]string, contents map[string]string, stdin io.Reader, stdout io.Writer) (string, string, error) {
+	options := make([]pickerItem, len(baseNames))
 	for i, n := range baseNames {
-		opts[i] = huh.NewOption(metaLabel(n, descs), n)
+		options[i] = pickerItem{label: metaLabel(n, descs), value: n}
 	}
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("New profile name").
-				Value(&name),
-		),
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Extend a base profile").
-				Options(opts...).
-				Value(&base),
-		),
-	).WithInput(stdin).WithOutput(stdout)
-	if err := form.Run(); err != nil {
-		return "", nil, err
-	}
-	if base == "" {
-		base = "mise"
-	}
-	return name, []string{base}, nil
+	return runNewProfile(options, contents, stdin, stdout)
 }
 
 func promptOverwrite(tty bool, targetPath string, stdin io.Reader, stdout io.Writer, reader *bufio.Reader) (writeAction, error) {

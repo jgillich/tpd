@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jgillich/tpd/internal/ui"
 )
 
 // Styles mirror huh's ThemeCharm so the folder nav looks identical to the
@@ -46,6 +47,18 @@ var (
 	// bubbles/help defaults are exactly what huh's ThemeCharm help uses.
 	navHelp         = help.New()
 	clearBelowFrame = "\x1b[0J" // erase from cursor to end of screen
+	// navPopupStyle is the details popup: a bordered box with no background, so
+	// the list around it stays visible while the popup's own cells overwrite
+	// the covered rows. Mirrors the approval prompt's popup.
+	navPopupStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("254")).
+			Padding(0, 1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(fuchsia)
+	// Scrollbar inside the details popup: a fuchsia thumb on a faint track,
+	// like the approval list's scrollbar.
+	navThumb = lipgloss.NewStyle().Foreground(fuchsia)
+	navTrack = lipgloss.NewStyle().Faint(true)
 )
 
 // sectionStyle returns huh's field base: a left thick border plus 1-space pad
@@ -71,6 +84,7 @@ var (
 		key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓", "down")),
 		key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter/space", "toggle")),
 		key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "details")),
 		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "done")),
 		key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc", "cancel")),
 	}
@@ -139,7 +153,13 @@ func (d folderNavDelegate) Render(w io.Writer, m list.Model, index int, item lis
 			prefix = fragPickedPrefix.Render("✓ ")
 			label = folderLabel
 		}
-		fmt.Fprintf(w, "%s  %s%s", cursor, prefix, label.Render(it.label))
+		if strings.Contains(it.display, "/") {
+			// Nested fragments indent one level under their folder.
+			fmt.Fprintf(w, "%s  %s%s", cursor, prefix, label.Render(it.label))
+		} else {
+			// Root-level fragments (no "/") align with the folder rows.
+			fmt.Fprintf(w, "%s%s%s", cursor, prefix, label.Render(it.label))
+		}
 	}
 }
 
@@ -149,16 +169,20 @@ func (d folderNavDelegate) Render(w io.Writer, m list.Model, index int, item lis
 type folderNavModel struct {
 	list        list.Model
 	nav         fragmentNav
-	availHeight int  // list viewport rows once a WindowSizeMsg arrives (0 before)
-	width       int  // content width, min 0 until a WindowSizeMsg arrives
-	focused     bool // true when the Done button section is focused
-	done        bool // true once an action has been chosen (frame clears on exit)
+	contents    map[string]string // fragment display name → YAML contents for the details popup
+	availHeight int               // list viewport rows once a WindowSizeMsg arrives (0 before)
+	width       int               // content width, min 0 until a WindowSizeMsg arrives
+	naturalH    int               // list viewport height with no details popup open
+	focused     bool              // true when the Done button section is focused
+	done        bool              // true once an action has been chosen (frame clears on exit)
 	expanded    map[string]bool
 	picked      map[string]bool
+	inspecting  bool // true while the details popup is open
+	detailScroll int // scroll offset into the details popup's content
 	result      string
 }
 
-func newFolderNavModel(title string, nav fragmentNav) folderNavModel {
+func newFolderNavModel(title string, nav fragmentNav, contents map[string]string) folderNavModel {
 	expanded := map[string]bool{}
 	picked := map[string]bool{}
 	d := folderNavDelegate{expanded: expanded, picked: picked}
@@ -179,7 +203,7 @@ func newFolderNavModel(title string, nav fragmentNav) folderNavModel {
 	// Quit is handled by this model so cancelling can report back to the
 	// browser loop; esc/q clear an applied filter before quitting.
 	l.KeyMap.Quit = key.NewBinding(key.WithDisabled())
-	return folderNavModel{list: l, nav: nav, expanded: expanded, picked: picked}
+	return folderNavModel{list: l, nav: nav, contents: contents, expanded: expanded, picked: picked, naturalH: len(items) + 1}
 }
 
 // visibleItems returns the rows in display order: each folder followed by its
@@ -208,8 +232,30 @@ func toListItems(items []folderNavItem) []list.Item {
 // so an expanded folder's fragments show without scrolling.
 func (m folderNavModel) rebuild() (folderNavModel, tea.Cmd) {
 	cmd := m.list.SetItems(toListItems(visibleItems(m.nav, m.expanded)))
-	m.list.SetHeight(m.listHeight())
+	m.applyListHeight()
 	return m, cmd
+}
+
+// applyListHeight sizes the list to its natural height (the visible items,
+// capped by the window) and records it, so the details popup can grow the
+// viewport and later restore it.
+func (m *folderNavModel) applyListHeight() {
+	m.naturalH = m.listHeight()
+	m.list.SetHeight(m.naturalH)
+}
+
+// popupListHeight is the list viewport height that makes the frame tall enough
+// to fully render the details popup. The frame is list + blank + Done button +
+// blank + help, so it needs the popup's height minus that 4-row overhead.
+func (m folderNavModel) popupListHeight() int {
+	need := len(strings.Split(m.popupBox(), "\n")) - 4
+	if need < 1 {
+		need = 1
+	}
+	if need < m.naturalH {
+		return m.naturalH
+	}
+	return need
 }
 
 func (m folderNavModel) listHeight() int {
@@ -236,6 +282,38 @@ func (m folderNavModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.result = browserCancel
 			m.done = true
 			return m, tea.Quit
+		case m.inspecting:
+			// Read-only inspection: back/cancel keys close it; up/down scroll
+			// the content when it overflows.
+			switch msg.String() {
+			case "esc", "q", "d":
+				m.inspecting = false
+				m.detailScroll = 0
+				m.list.SetHeight(m.naturalH)
+			case "up", "k":
+				if m.detailScroll > 0 {
+					m.detailScroll--
+				}
+			case "down", "j":
+				if it, ok := m.list.SelectedItem().(folderNavItem); ok {
+					max := navPopupMaxScroll(m.contents[it.display], m.popupWidth())
+					if m.detailScroll < max {
+						m.detailScroll++
+					}
+				}
+			}
+			return m, nil
+		case msg.String() == "d" && !m.focused && m.list.FilterState() != list.Filtering:
+			// Folders have no contents of their own; only a highlighted
+			// fragment opens the details popup.
+			if it, ok := m.list.SelectedItem().(folderNavItem); ok && it.kind == itemFragment {
+				m.inspecting = true
+				m.detailScroll = 0
+				// A short list (or an active filter) yields a frame too short
+				// for the popup; grow the viewport so it fits.
+				m.list.SetHeight(m.popupListHeight())
+			}
+			return m, nil
 		case (msg.String() == "tab" || msg.String() == "shift+tab") && m.list.FilterState() == list.Unfiltered:
 			m.focused = !m.focused
 			return m, nil
@@ -282,7 +360,10 @@ func (m folderNavModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.availHeight < 1 {
 			m.availHeight = 1
 		}
-		m.list.SetHeight(m.listHeight())
+		m.applyListHeight()
+		if m.inspecting {
+			m.list.SetHeight(m.popupListHeight())
+		}
 	}
 	if m.focused {
 		// The Done section consumes no list keys; tab/enter/esc are handled
@@ -319,21 +400,148 @@ func (m folderNavModel) View() string {
 		binds = doneKeyBinds
 	}
 	b.WriteString(navHelp.ShortHelpView(binds))
+	if m.inspecting {
+		return ui.OverlayPopup(b.String(), m.popupBox(), m.popupWidth())
+	}
 	return b.String()
 }
 
+// popupWidth is the window width for overlaying the details popup: the
+// terminal width once a WindowSizeMsg arrived, else the list's content width.
+func (m folderNavModel) popupWidth() int {
+	if m.width > 0 {
+		return m.width
+	}
+	return m.list.Width()
+}
+
+// popupBox renders the details popup for the highlighted fragment: the
+// fragment's display name above its YAML contents. Folders have no contents
+// and never reach here.
+func (m folderNavModel) popupBox() string {
+	it, ok := m.list.SelectedItem().(folderNavItem)
+	if !ok {
+		return ""
+	}
+	return navPopup(it.display, m.contents[it.display], m.popupWidth(), m.detailScroll)
+}
+
+// detailWindow is how many content lines the details popup shows at once.
+const detailWindow = 10
+
+// navPopupContentW is the popup's content width: a fixed 60 columns, shrunk to
+// fit narrow terminals (border and padding take 6).
+func navPopupContentW(width int) int {
+	contentW := 60
+	if width > 0 && contentW > width-6 {
+		contentW = width - 6
+	}
+	if contentW < 20 {
+		contentW = 20
+	}
+	return contentW
+}
+
+// navPopupLines wraps the popup content to the content width.
+func navPopupLines(content string, contentW int) []string {
+	return strings.Split(lipgloss.NewStyle().Width(contentW).Render(content), "\n")
+}
+
+// navPopupMaxScroll is the largest scroll offset that still fills the visible
+// window: the wrapped lines past the window, or 0 when everything fits.
+func navPopupMaxScroll(content string, width int) int {
+	if content == "" {
+		return 0
+	}
+	lines := navPopupLines(content, navPopupContentW(width))
+	if len(lines) <= detailWindow {
+		return 0
+	}
+	return len(lines) - detailWindow
+}
+
+// navPopup renders a catalog entry's details popup: the entry name above its
+// YAML contents, wrapped to a fixed content width and scrolled to offset when
+// the contents overflow (with a scrollbar and an ↑/↓ hint), plus an esc-close
+// hint. Mirrors the approval prompt's details popup (same style, window, and
+// centered overlay).
+func navPopup(name, content string, width, offset int) string {
+	if content == "" {
+		return ""
+	}
+	contentW := navPopupContentW(width)
+	lines := navPopupLines(content, contentW)
+	scroll := len(lines) > detailWindow
+	start := offset
+	if scroll && start+detailWindow > len(lines) {
+		start = len(lines) - detailWindow
+	}
+	if start < 0 {
+		start = 0
+	}
+	win := lines[start:min(start+detailWindow, len(lines))]
+	bar := newNavPopupScroll(len(lines), start, len(win))
+	rendered := make([]string, len(win))
+	for i, l := range win {
+		rendered[i] = l + bar.cell(i)
+	}
+	hint := "esc close"
+	if scroll {
+		hint = "↑/↓ scroll · " + hint
+	}
+	body := name + "\n\n" + strings.Join(rendered, "\n") + "\n\n" + hint
+	return navPopupStyle.Width(contentW + bar.width() + 4).Render(body)
+}
+
+// navPopupScroll is a 1-column scrollbar for the details popup: a thumb sized
+// and positioned by the visible window within the full content, mirroring the
+// approval list's scrollbar. It is hidden when everything fits.
+type navPopupScroll struct {
+	start, end int
+	active     bool
+}
+
+func newNavPopupScroll(total, start, win int) navPopupScroll {
+	if total <= win {
+		return navPopupScroll{}
+	}
+	// Fixed 1-row thumb that tracks the window's position in the content.
+	pos := 0
+	if total > win {
+		pos = start * (win - 1) / (total - win)
+	}
+	return navPopupScroll{start: pos, end: pos + 1, active: true}
+}
+
+func (s navPopupScroll) width() int {
+	if !s.active {
+		return 0
+	}
+	return 1
+}
+
+func (s navPopupScroll) cell(row int) string {
+	if !s.active {
+		return ""
+	}
+	if row >= s.start && row < s.end {
+		return navThumb.Render("█")
+	}
+	return navTrack.Render("│")
+}
+
 // runFolderNav shows the folder-navigation screen and returns the picked
-// fragment display names, sorted. Cancelling returns errNavCancelled so the
+// fragment display names, sorted. Cancelling returns errSelectionCancelled so the
 // wizard aborts like the huh prompts do.
-func runFolderNav(nav fragmentNav, stdin io.Reader, stdout io.Writer) ([]string, error) {
-	p := tea.NewProgram(newFolderNavModel("Fragments", nav), tea.WithInput(stdin), tea.WithOutput(stdout))
+func runFolderNav(nav fragmentNav, contents map[string]string, stdin io.Reader, stdout io.Writer) ([]string, error) {
+	p := tea.NewProgram(newFolderNavModel("Fragments", nav, contents), tea.WithInput(stdin), tea.WithOutput(stdout))
 	model, err := p.Run()
 	if err != nil {
 		return nil, err
 	}
 	fm := model.(folderNavModel)
 	if fm.result == browserCancel {
-		return nil, errNavCancelled
+		return nil, errSelectionCancelled
 	}
 	return finishPicked(fm.picked), nil
 }

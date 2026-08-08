@@ -264,16 +264,18 @@ func renderRow(w io.Writer, it approvalItem, selected bool, contentW int) {
 // confirmation — checking items is the explicit opt-in); esc cancels.
 // Pressing d on an item opens a read-only details view for it.
 type approvalModel struct {
-	req        PromptRequest
-	rows       []approvalItem
-	list       list.Model
-	width      int // window width
-	height     int // window height
-	boxW       int // content-sized box width (list + pane), capped by width
-	inspecting bool
-	done       bool
-	cancelled  bool
-	result     map[string]map[string]bool
+	req          PromptRequest
+	rows         []approvalItem
+	list         list.Model
+	width        int // window width
+	height       int // window height
+	boxW         int       // content-sized box width (list + pane), capped by width
+	naturalH     int       // list viewport height with no details popup open
+	inspecting   bool
+	detailScroll int // scroll offset into the details popup's content
+	done         bool
+	cancelled    bool
+	result       map[string]map[string]bool
 }
 
 // rowTier ranks a row's prominence for the list order: warnings first,
@@ -331,7 +333,7 @@ func newApprovalModel(req PromptRequest) approvalModel {
 	for i, r := range rows {
 		items[i] = r
 	}
-	m := approvalModel{req: req, rows: rows, width: 80, height: 20}
+	m := approvalModel{req: req, rows: rows, width: 80, height: 20, naturalH: 20}
 	m.boxW = m.naturalBoxW()
 	if m.boxW > m.width {
 		m.boxW = m.width
@@ -383,10 +385,21 @@ func (m approvalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if m.inspecting {
-			// Read-only inspection: only back/cancel keys do anything.
+			// Read-only inspection: back/cancel keys close it; up/down scroll
+			// the content when it overflows.
 			switch msg.String() {
 			case "esc", "q", "d":
 				m.inspecting = false
+				m.detailScroll = 0
+				m.list.SetHeight(m.naturalH)
+			case "up", "k":
+				if m.detailScroll > 0 {
+					m.detailScroll--
+				}
+			case "down", "j":
+				if m.detailScroll < m.detailMaxScroll() {
+					m.detailScroll++
+				}
 			}
 			return m, nil
 		}
@@ -413,6 +426,10 @@ func (m approvalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.toggleSelected()
 		case "d":
 			m.inspecting = true
+			m.detailScroll = 0
+			// A short list yields a frame too short for the popup; grow the
+			// viewport so it fits.
+			m.list.SetHeight(m.popupListHeight())
 			return m, nil
 		case "enter":
 			m.result = m.buildChoices()
@@ -427,6 +444,9 @@ func (m approvalModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	l, cmd := m.list.Update(msg)
 	m.list = l
 	m.setHeights()
+	if m.inspecting {
+		m.list.SetHeight(m.popupListHeight())
+	}
 	return m, cmd
 }
 
@@ -456,7 +476,7 @@ func (m approvalModel) View() string {
 	b.WriteString("\n")
 	if m.inspecting {
 		// Overlay the details popup on top of the list frame.
-		return overlayPopup(b.String(), m.popupBox(), w)
+		return ui.OverlayPopup(b.String(), m.popupBox(), w)
 	}
 	return b.String()
 }
@@ -466,22 +486,25 @@ func (m approvalModel) View() string {
 // The window hugs the items when they fit; otherwise it scrolls lazily —
 // the cursor moves within the window until it reaches the edge, then the
 // window shifts, end-aligned at the bottom. Each row carries a scrollbar
-// cell on the right so it's clear more items exist above/below.
+// cell on the right so it's clear more items exist above/below. When the
+// details popup grows the viewport, the frame below the items is padded so the
+// popup has room to render.
 func (m approvalModel) renderRows() string {
 	items, start, end, idx := m.window()
-	if len(items) == 0 {
-		return ""
-	}
-	bar := newScrollBar(len(items), start, end-start)
-	var b strings.Builder
-	for i := start; i < end; i++ {
-		renderRow(&b, items[i].(approvalItem), i == idx, m.list.Width())
-		b.WriteString(bar.cell(i - start))
-		if i != end-1 {
-			b.WriteString("\n")
+	rows := make([]string, 0, m.list.Height())
+	if len(items) > 0 {
+		bar := newScrollBar(len(items), start, end-start)
+		for i := start; i < end; i++ {
+			var row strings.Builder
+			renderRow(&row, items[i].(approvalItem), i == idx, m.list.Width())
+			row.WriteString(bar.cell(i - start))
+			rows = append(rows, row.String())
 		}
 	}
-	return b.String()
+	for len(rows) < m.list.Height() {
+		rows = append(rows, "")
+	}
+	return strings.Join(rows, "\n")
 }
 
 // window returns the visible slice of items plus the cursor's absolute index.
@@ -618,7 +641,23 @@ func (m *approvalModel) setHeights() {
 	if rows < 1 {
 		rows = 1
 	}
+	m.naturalH = rows
 	m.list.SetHeight(rows)
+}
+
+// popupListHeight is the list viewport height that makes the frame tall enough
+// to fully render the details popup. The frame is title + description + blank +
+// list + blank + help + blank, so it needs the popup's height minus that
+// descLines+5 overhead.
+func (m approvalModel) popupListHeight() int {
+	need := len(strings.Split(m.popupBox(), "\n")) - m.descLines() - 5
+	if need < 1 {
+		need = 1
+	}
+	if need < m.naturalH {
+		return m.naturalH
+	}
+	return need
 }
 
 // descLines is how many rows the wrapped description occupies at the window
@@ -642,10 +681,32 @@ func (m approvalModel) detailsContent() string {
 	return it.item.Value
 }
 
+// detailWindow is how many content lines the details popup shows at once.
+const detailWindow = 10
+
+// detailMaxScroll is the largest scroll offset that still fills the visible
+// popup window: the wrapped content lines past the window, or 0 when all of it
+// fits.
+func (m approvalModel) detailMaxScroll() int {
+	contentW := 60
+	if m.width > 0 && contentW > m.width-6 {
+		contentW = m.width - 6
+	}
+	if contentW < 20 {
+		contentW = 20
+	}
+	lines := strings.Split(lipgloss.NewStyle().Width(contentW).Render(m.detailsContent()), "\n")
+	if len(lines) <= detailWindow {
+		return 0
+	}
+	return len(lines) - detailWindow
+}
+
 // popupBox renders the details popup: a header (category, key, and the
-// contributing entry) above the full value, wrapped to a fixed content width,
-// with an esc-close hint. All plain text — popupStyle colors it as a solid
-// box so it masks the list behind it.
+// contributing entry) above the full value, wrapped to a fixed content width
+// and scrolled to the current offset when the value overflows (with a
+// scrollbar and an ↑/↓ hint), plus an esc-close hint. All plain text —
+// popupStyle colors it as a solid box so it masks the list behind it.
 func (m approvalModel) popupBox() string {
 	it, _ := m.list.SelectedItem().(approvalItem)
 	contentW := 60
@@ -660,63 +721,30 @@ func (m approvalModel) popupBox() string {
 		header += "  · from " + it.item.Source.FullName
 	}
 	lines := strings.Split(lipgloss.NewStyle().Width(contentW).Render(m.detailsContent()), "\n")
-	if len(lines) > 10 {
-		lines = lines[:10]
-		lines[9] = ansi.Truncate(lines[9], contentW-1, "…")
+	start := m.detailScroll
+	if start+detailWindow > len(lines) {
+		start = max(len(lines)-detailWindow, 0)
 	}
-	body := header + "\n\n" + strings.Join(lines, "\n") + "\n\n" + "esc close"
-	return popupStyle.Width(contentW + 4).Render(body)
-}
-
-// overlayPopup splices a popup box onto a base frame of the given width,
-// centered vertically. The base rows the popup covers become plain text
-// outside the popup (the popup's background masks them); every other row keeps
-// its styling.
-func overlayPopup(base string, popup string, width int) string {
-	baseLines := padLinesTo(strings.Split(base, "\n"), width)
-	popupLines := strings.Split(popup, "\n")
-	popupW := 0
-	for _, l := range popupLines {
-		if w := lipgloss.Width(l); w > popupW {
-			popupW = w
+	win := lines[start:min(start+detailWindow, len(lines))]
+	bar := newScrollBar(len(lines), start, len(win))
+	scrollW := 0
+	if bar.active {
+		scrollW = 2
+	}
+	rendered := make([]string, len(win))
+	for i, l := range win {
+		cell := ""
+		if bar.active {
+			cell = bar.cell(i)
 		}
+		rendered[i] = l + cell
 	}
-	popupH := len(popupLines)
-	x := (width - popupW) / 2
-	if x < 0 {
-		x = 0
+	hint := "esc close"
+	if bar.active {
+		hint = "↑/↓ scroll · " + hint
 	}
-	y := (len(baseLines) - popupH) / 2
-	if y < 0 {
-		y = 0
-	}
-	for k := 0; k < popupH && y+k < len(baseLines); k++ {
-		plain := []rune(ansi.Strip(baseLines[y+k]))
-		var b strings.Builder
-		if x > 0 && x <= len(plain) {
-			b.WriteString(string(plain[:x]))
-		}
-		b.WriteString(padToWidth(popupLines[k], popupW))
-		if x+popupW < len(plain) {
-			b.WriteString(string(plain[x+popupW:]))
-		}
-		baseLines[y+k] = b.String()
-	}
-	return strings.Join(baseLines, "\n")
-}
-
-func padToWidth(s string, w int) string {
-	if d := w - lipgloss.Width(s); d > 0 {
-		return s + strings.Repeat(" ", d)
-	}
-	return s
-}
-
-func padLinesTo(lines []string, w int) []string {
-	for i, l := range lines {
-		lines[i] = padToWidth(l, w)
-	}
-	return lines
+	body := header + "\n\n" + strings.Join(rendered, "\n") + "\n\n" + hint
+	return popupStyle.Width(contentW + scrollW + 4).Render(body)
 }
 
 func padRight(s string, w int) string {
