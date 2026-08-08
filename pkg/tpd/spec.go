@@ -184,6 +184,17 @@ func buildSpec(opts LaunchOpts, cfg profile.Profile, mode workspace.Mode, hostHo
 	// Workspace mount (CLI, not profile) per spec §4.2
 	wsTarget := workspace.ComputeMountTarget(opts.Workspace, mode)
 
+	// --yes/--no extend to the in-container mise so the trust prompt for the
+	// workspace's config doesn't block an otherwise non-interactive launch.
+	// MISE_YES=1 auto-answers all mise prompts. MISE_YES=0 is the documented
+	// "answer no" value but mise only treats it as the unset default, so it
+	// does not actually silence prompts; left in as intent + upstream report.
+	if opts.AssumeYes {
+		env["MISE_YES"] = "1"
+	} else if opts.AssumeNo {
+		env["MISE_YES"] = "0"
+	}
+
 	// Command = binary + passthrough args; user args replace the profile's
 	// default args (command[1:]), which only apply when no args are given.
 	// Command and Args are mutually exclusive: a shell snippet cannot sensibly

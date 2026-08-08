@@ -502,6 +502,28 @@ func TestBuildSpecServiceCollision(t *testing.T) {
 	}
 }
 
+func TestBuildSpecMiseYesPropagatesFlags(t *testing.T) {
+	cfg := profile.Profile{Version: 1, Image: "img", Command: []string{"sh"}}
+	build := func(opts LaunchOpts) runtime.Spec {
+		t.Helper()
+		spec, err := buildSpec(opts, cfg, workspace.ModeRootless, "/home/me", "/home/me")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return spec
+	}
+
+	if spec := build(LaunchOpts{ProfileName: "p", Workspace: "/p", AssumeYes: true}); spec.Env["MISE_YES"] != "1" {
+		t.Errorf("--yes: MISE_YES = %q, want \"1\"", spec.Env["MISE_YES"])
+	}
+	if spec := build(LaunchOpts{ProfileName: "p", Workspace: "/p", AssumeNo: true}); spec.Env["MISE_YES"] != "0" {
+		t.Errorf("--no: MISE_YES = %q, want \"0\"", spec.Env["MISE_YES"])
+	}
+	if spec := build(LaunchOpts{ProfileName: "p", Workspace: "/p"}); spec.Env["MISE_YES"] != "" {
+		t.Errorf("no flag: MISE_YES = %q, want unset", spec.Env["MISE_YES"])
+	}
+}
+
 func TestBuildSpecServiceSocketOnlyHostVar(t *testing.T) {
 	cfg := profile.Profile{
 		Version: 1,
