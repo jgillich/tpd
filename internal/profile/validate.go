@@ -368,8 +368,7 @@ func validateResources(rc RawProfile) error {
 		return nil
 	}
 	// A {{ }} template is exempt from the parse checks (it cannot be evaluated
-	// here); ResolveTildes renders it and spec.go parses the result, treating
-	// an unparseable value as no limit.
+	// here); ResolveTildes renders it and fails on an unparseable result.
 	if rc.Resources.Memory != "" && !strings.Contains(rc.Resources.Memory, "{{") {
 		if _, err := ParseMemoryBytes(rc.Resources.Memory); err != nil {
 			return ProfileError{Path: rc.Path, Message: "resources: memory: " + err.Error()}

@@ -212,12 +212,22 @@ func ResolveTildes(cfg Profile, mode workspace.Mode, hostHome, runtimeHome strin
 			if err != nil {
 				return out, fmt.Errorf("resources: memory: %w", err)
 			}
+			if rendered != "" {
+				if _, err := ParseMemoryBytes(rendered); err != nil {
+					return out, fmt.Errorf("resources: memory: rendered value %q: %w", rendered, err)
+				}
+			}
 			res.Memory = rendered
 		}
 		if res.CPUs != "" {
 			rendered, err := renderTemplate(res.CPUs, data)
 			if err != nil {
 				return out, fmt.Errorf("resources: cpus: %w", err)
+			}
+			if rendered != "" {
+				if _, err := ParseNanoCPUs(rendered); err != nil {
+					return out, fmt.Errorf("resources: cpus: rendered value %q: %w", rendered, err)
+				}
 			}
 			res.CPUs = rendered
 		}

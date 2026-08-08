@@ -55,17 +55,18 @@ same `renderTemplate` path as env/command values (each non-empty string).
 
 Validation: when `resources.memory`/`resources.cpus` contain `{{`, skip
 `ParseMemoryBytes`/`ParseNanoCPUs` in `validateResources` — mirroring the
-existing path-template exemption. `spec.go` parses the rendered value and
-ignores parse errors (existing behavior), so a rendered value that does not
-parse degrades to unset (0 bytes / 0 CPUs → no limit), not an error.
+existing path-template exemption. `ResolveTildes` parses the rendered value
+and fails the launch on one that does not parse; an empty rendered value
+stays unset (no limit).
 
-### 3. Degradation when host data is missing
+### 3. Missing host data is a hard error
 
-`.MemBytes` is always an int64; when `/proc/meminfo` is unreadable it is 0.
-`div`'s contract: integer division, with a zero divisor yielding 0 (never a
-panic). A rendered `0` memory value is rejected by `ParseMemoryBytes`
-(`b <= 0`), which `spec.go` ignores, so the fragment degrades to "no limit"
-rather than a hard error on hosts where `/proc/meminfo` is unavailable.
+`.MemBytes` is always an int64; when `/proc/meminfo` is unreadable it is 0,
+so `{{ div .MemBytes 2 }}` renders `0`, which `ResolveTildes` rejects
+(`ParseMemoryBytes` requires a positive value). This is deliberate: on the
+Linux target `/proc/meminfo` is always readable, so a `0` indicates a broken
+host rather than a valid config. `div` never panics on a zero divisor (it
+returns 0), keeping the failure a clean validation error.
 
 ### 4. The `defaults` fragment
 

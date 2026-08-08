@@ -837,3 +837,14 @@ func TestDiv(t *testing.T) {
 		t.Errorf("div(10, 0) = %d, want 0 (zero divisor must not panic)", got)
 	}
 }
+
+func TestResolveTildesRejectsUnparseableRenderedResource(t *testing.T) {
+	cfg := Profile{
+		Resources: &Resources{
+			Memory: `{{ or (index .Env "TPD_MEM_UNSET") "abc" }}`,
+		},
+	}
+	if _, err := ResolveTildes(cfg, workspace.ModeRootless, "/home/me", "/home/me", nil); err == nil {
+		t.Fatal("expected error for rendered memory value that does not parse")
+	}
+}
