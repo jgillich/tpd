@@ -1,7 +1,7 @@
 .PHONY: install patch banner docs
 
 install:
-	go install ./cmd/tpd
+	GOBIN="$(HOME)/.local/share/go/bin" go install ./cmd/tpd
 
 docs:
 	go run ./cmd/gen-catalog
