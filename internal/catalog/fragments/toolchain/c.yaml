@@ -1,6 +1,6 @@
 version: 1
 meta:
-  description: C toolchain (gcc, clang, make, cmake, ninja) with ccache
+  description: C toolchain (gcc, clang, make, cmake, ninja) with sccache
 packages:
   - clang
   - cmake
@@ -10,6 +10,9 @@ packages:
   - ninja-build
   - pkgconf
 tools:
-  ccache: latest
+  sccache: latest
 caches:
-  ccache: ~/.cache/ccache
+  sccache: ~/.cache/sccache
+environment:
+  CC: sccache gcc
+  CXX: sccache g++

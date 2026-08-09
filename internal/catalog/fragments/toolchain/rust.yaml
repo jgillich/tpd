@@ -1,7 +1,11 @@
 version: 1
 meta:
-  description: Rust toolchain with cargo cache
+  description: Rust toolchain with cargo and sccache caches
 caches:
   cargo: ~/.cargo
+  sccache: ~/.cache/sccache
 tools:
   rust: latest
+  sccache: latest
+environment:
+  RUSTC_WRAPPER: sccache

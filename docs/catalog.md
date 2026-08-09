@@ -1199,14 +1199,14 @@ packages:
 
 ### `toolchain/c`
 
-C toolchain (gcc, clang, make, cmake, ninja) with ccache
+C toolchain (gcc, clang, make, cmake, ninja) with sccache
 
 <details><summary>Source</summary>
 
 ```yaml
 version: 1
 meta:
-  description: C toolchain (gcc, clang, make, cmake, ninja) with ccache
+  description: C toolchain (gcc, clang, make, cmake, ninja) with sccache
 packages:
   - clang
   - cmake
@@ -1216,9 +1216,12 @@ packages:
   - ninja-build
   - pkgconf
 tools:
-  ccache: latest
+  sccache: latest
 caches:
-  ccache: ~/.cache/ccache
+  sccache: ~/.cache/sccache
+environment:
+  CC: sccache gcc
+  CXX: sccache g++
 ```
 
 </details>
@@ -1526,18 +1529,22 @@ caches:
 
 ### `toolchain/rust`
 
-Rust toolchain with cargo cache
+Rust toolchain with cargo and sccache caches
 
 <details><summary>Source</summary>
 
 ```yaml
 version: 1
 meta:
-  description: Rust toolchain with cargo cache
+  description: Rust toolchain with cargo and sccache caches
 caches:
   cargo: ~/.cargo
+  sccache: ~/.cache/sccache
 tools:
   rust: latest
+  sccache: latest
+environment:
+  RUSTC_WRAPPER: sccache
 ```
 
 </details>
