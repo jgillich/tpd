@@ -1199,20 +1199,21 @@ packages:
 
 ### `toolchain/c`
 
-C toolchain (gcc, clang, make, cmake, ninja) with sccache
+C toolchain (gcc, clang, make, cmake, ninja)
 
 <details><summary>Source</summary>
 
 ```yaml
 version: 1
 meta:
-  description: C toolchain (gcc, clang, make, cmake, ninja) with sccache
+  description: C toolchain (gcc, clang, make, cmake, ninja)
 packages:
   - clang
   - cmake
   - gcc
   - gdb
   - make
+  - mold
   - ninja-build
   - pkgconf
 tools:
@@ -1222,6 +1223,7 @@ caches:
 environment:
   CC: sccache gcc
   CXX: sccache g++
+  LDFLAGS: -fuse-ld=mold
 ```
 
 </details>
@@ -1529,14 +1531,14 @@ caches:
 
 ### `toolchain/rust`
 
-Rust toolchain with cargo and sccache caches
+Rust toolchain with cargo
 
 <details><summary>Source</summary>
 
 ```yaml
 version: 1
 meta:
-  description: Rust toolchain with cargo and sccache caches
+  description: Rust toolchain with cargo
 caches:
   cargo: ~/.cargo
   sccache: ~/.cache/sccache
@@ -1545,6 +1547,7 @@ tools:
   sccache: latest
 environment:
   RUSTC_WRAPPER: sccache
+  RUSTFLAGS: -C link-arg=-fuse-ld=mold
 ```
 
 </details>

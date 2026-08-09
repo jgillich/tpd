@@ -1,6 +1,6 @@
 version: 1
 meta:
-  description: Rust toolchain with cargo and sccache caches
+  description: Rust toolchain with cargo
 caches:
   cargo: ~/.cargo
   sccache: ~/.cache/sccache
@@ -9,3 +9,4 @@ tools:
   sccache: latest
 environment:
   RUSTC_WRAPPER: sccache
+  RUSTFLAGS: -C link-arg=-fuse-ld=mold

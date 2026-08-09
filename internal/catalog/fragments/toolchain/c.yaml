@@ -1,12 +1,13 @@
 version: 1
 meta:
-  description: C toolchain (gcc, clang, make, cmake, ninja) with sccache
+  description: C toolchain (gcc, clang, make, cmake, ninja)
 packages:
   - clang
   - cmake
   - gcc
   - gdb
   - make
+  - mold
   - ninja-build
   - pkgconf
 tools:
@@ -16,3 +17,4 @@ caches:
 environment:
   CC: sccache gcc
   CXX: sccache g++
+  LDFLAGS: -fuse-ld=mold
