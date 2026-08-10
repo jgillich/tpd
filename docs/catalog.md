@@ -1541,6 +1541,7 @@ meta:
   description: Rust toolchain with cargo
 caches:
   cargo: ~/.cargo
+  rustup: ~/.rustup
   sccache: ~/.cache/sccache
 tools:
   rust: latest
