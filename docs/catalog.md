@@ -39,12 +39,12 @@ The built-in profiles and fragments shipped in the tpd binary. Run `make docs` t
     - [gui/session](#guisession)
   - [service](#service)
     - [service/podman](#servicepodman)
-  - [sysutils](#sysutils)
-    - [sysutils/docker](#sysutilsdocker)
-    - [sysutils/nix](#sysutilsnix)
-    - [sysutils/podman](#sysutilspodman)
-    - [sysutils/ssh](#sysutilsssh)
-    - [sysutils/vault](#sysutilsvault)
+  - [sysutil](#sysutil)
+    - [sysutil/docker](#sysutildocker)
+    - [sysutil/nix](#sysutilnix)
+    - [sysutil/podman](#sysutilpodman)
+    - [sysutil/ssh](#sysutilssh)
+    - [sysutil/vault](#sysutilvault)
   - [toolchain](#toolchain)
     - [toolchain/android](#toolchainandroid)
     - [toolchain/bash](#toolchainbash)
@@ -1010,9 +1010,9 @@ environment:
 
 </details>
 
-### sysutils
+### sysutil
 
-### `sysutils/docker`
+### `sysutil/docker`
 
 Host docker socket
 
@@ -1037,7 +1037,7 @@ environment:
 
 </details>
 
-### `sysutils/nix`
+### `sysutil/nix`
 
 Nix package manager with persistent store cache
 
@@ -1074,7 +1074,7 @@ environment:
 
 </details>
 
-### `sysutils/podman`
+### `sysutil/podman`
 
 Host container engine socket (podman/docker)
 
@@ -1100,7 +1100,7 @@ environment:
 
 </details>
 
-### `sysutils/ssh`
+### `sysutil/ssh`
 
 SSH keys and client
 
@@ -1124,7 +1124,7 @@ packages:
 
 </details>
 
-### `sysutils/vault`
+### `sysutil/vault`
 
 HashiCorp Vault CLI and token
 

@@ -68,7 +68,7 @@ func TestCatalogDocStructure(t *testing.T) {
 	if !strings.Contains(doc, "### `mise`") {
 		t.Errorf("doc must list the mise profile")
 	}
-	for _, group := range []string{"cloud", "gui", "service", "sysutils", "toolchain", "vcs"} {
+	for _, group := range []string{"cloud", "gui", "service", "sysutil", "toolchain", "vcs"} {
 		if !strings.Contains(doc, "### "+group) {
 			t.Errorf("doc must group fragments under %s", group)
 		}
