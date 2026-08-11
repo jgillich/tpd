@@ -655,6 +655,7 @@ tools:
   yq: latest
 resources:
   memory: "{{ div .MemBytes 2 }}"
+  cpus: "{{ div .NumCPU 2 }}"
 ```
 
 </details>
