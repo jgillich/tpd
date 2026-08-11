@@ -1539,6 +1539,8 @@ Rust toolchain with cargo
 version: 1
 meta:
   description: Rust toolchain with cargo
+packages:
+  - rustup
 caches:
   cargo: ~/.cargo
   rustup: ~/.rustup
