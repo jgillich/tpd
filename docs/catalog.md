@@ -417,6 +417,7 @@ mounts:
   ~/.config/opencode:
     source: ~/.config/opencode
     create: true
+    read_only: false
   ~/.cache/opencode:
     source: ~/.cache/opencode
     create: true
