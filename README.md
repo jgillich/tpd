@@ -153,20 +153,20 @@ Every launchable profile needs `version`, `image`, and `command`. Fragments only
 | Field | Type | Description |
 | --- | --- | --- |
 | `version` | int | Config schema version. Currently `1`. |
-| `extends` | string \| list | Inherit from another profile or fragment, then deep-merge. Cycles are rejected; fragments may only extend fragments. |
+| `extends` | `string \| string[]` | Inherit from another profile or fragment, then deep-merge. Cycles are rejected; fragments may only extend fragments. |
 | `image` | string | Container image. |
 | `packages` | string[] | Apt packages installed in a derived image, built on first use and reused. |
-| `repos` | map | Extra apt sources (`extrepo: <name>`), resolved at build time for the base image's Debian version. v1 supports extrepo entries; custom URL repositories are not yet buildable. |
-| `files` | map | Files written into the container at launch, keyed by target path. Each entry: `content` (inline, `{{ }}` templates), `mode` (default `0644`). |
+| `repos` | `map[string]repo` | Extra apt sources, keyed by a logical repo name; each value is `extrepo: <name>`, resolved at build time for the base image's Debian version. v1 supports extrepo entries; custom URL repositories are not yet buildable. |
+| `files` | `map[path]file` | Files written into the container at launch, keyed by target path. Each entry: `content` (inline, `{{ }}` templates), `mode` (default `0644`). |
 | `command` | string[] | Command to run. User args on the CLI replace the default args. |
-| `mounts` | map | Bind mounts, keyed by container target. Host binds use `source`, `read_only` (default `true`), `optional`, `create`; service-socket mounts use `service` + `socket`. `~` in `source` → host `$HOME`; `~` as key → runtime home. |
-| `services` | map | Companion daemon containers that start before the main container and stop after it, exposing sockets the main container mounts. See [Companion services](#companion-services-services). |
-| `caches` | map | Named-volume-backed cache dirs, shared across all profiles. |
-| `tools` | map | mise-managed tools, keyed by name; value is the version. `appimage:` tools stay on `latest` and are digest-verified at install (against GitHub's per-asset digest or a checksum sidecar); an explicit `sha256` or per-arch `sha256: {amd64, aarch64}` is optional. |
-| `environment` | map | Env vars. Forward a host variable with `'{{ .Env.FOO }}'`. |
-| `ports` | map | Publish container ports to the host. Key is the container port; `host` optional (`0` = random). Allocated host ports are available to templates via `.Ports`. |
-| `devices` | map | Attach host device nodes (e.g. `/dev/fuse`). Optional `permissions` (`r`/`rw`/`rwm`) and `cgroup`. |
-| `labels` | map | Container labels (`profile` is set automatically). |
+| `mounts` | `map[target]mount` | Bind mounts, keyed by container target. Host binds use `source`, `read_only` (default `true`), `optional`, `create`; service-socket mounts use `service` + `socket`. `~` in `source` → host `$HOME`; `~` as key → runtime home. |
+| `services` | `map[string]service` | Companion daemon containers, keyed by service name, that start before the main container and stop after it, exposing sockets the main container mounts. Each value is a mini-profile (`image`, `command`, `caches`, `exposes`, etc.). See [Companion services](#companion-services-services). |
+| `caches` | `map[string]path \| path[]` | Named-volume-backed cache dirs shared across profiles, keyed by cache name. Each value is a container path (scalar) or a list of paths. |
+| `tools` | `map[string]tool` | mise-managed tools, keyed by name. Each value is a version string or `{version, sha256}`. `appimage:` tools stay on `latest` and are digest-verified at install (against GitHub's per-asset digest or a checksum sidecar); an explicit `sha256` or per-arch `sha256: {amd64, aarch64}` is optional. |
+| `environment` | `map[string]string` | Env vars, keyed by name; values may be `{{ }}` templates. Forward a host variable with `'{{ .Env.FOO }}'`. |
+| `ports` | `map[port]portbind` | Publish container ports to the host, keyed by container port. Each portbind may set `host` (optional; `0` = random), `host_ip`, and `protocol` (`tcp` default, `udp`, or `sctp`). Allocated host ports are available to templates via `.Ports`. |
+| `devices` | `map[path]device` | Attach host device nodes, keyed by container device path (e.g. `/dev/fuse: {}`). Each entry may set `source` (host device path; defaults to the container path), `permissions` (`r`/`rw`/`rwm`; default `rwm`), and `cgroup` (bool: also emit a cgroup device rule). |
+| `labels` | `map[string]string` | Container labels, keyed by name; values are strings (`profile` is set automatically). |
 | `network` | string | `bridge` (default), `host`, `none`, or a custom name. |
 | `resources` | object | Optional resource limits: `{ memory, cpus }`, enforced as container resource limits (Docker `--memory`/`--cpus` semantics). |
 | `tty` | string | `auto` (default), `true`, or `false`. |
