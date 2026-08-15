@@ -1,0 +1,14 @@
+version: 1
+meta:
+  description: omp, the oh-my-pi coding agent
+extends:
+  - defaults
+  - mise
+command: ["omp"]
+tools:
+  oh-my-pi: latest
+mounts:
+  ~/.omp:
+    source: ~/.omp
+    create: true
+    read_only: false

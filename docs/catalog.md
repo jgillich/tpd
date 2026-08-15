@@ -16,6 +16,7 @@ The built-in profiles and fragments shipped in the tpd binary. Run `make docs` t
   - [gemini](#gemini)
   - [goose](#goose)
   - [mise](#mise)
+  - [omp](#omp)
   - [opencode](#opencode)
   - [opencode-desktop](#opencode-desktop)
   - [pi](#pi)
@@ -393,6 +394,31 @@ files:
       if command -v mise >/dev/null 2>&1; then
         eval "$(mise hook-env)"
       fi
+```
+
+</details>
+
+### `omp`
+
+omp, the oh-my-pi coding agent
+
+<details><summary>Source</summary>
+
+```yaml
+version: 1
+meta:
+  description: omp, the oh-my-pi coding agent
+extends:
+  - defaults
+  - mise
+command: ["omp"]
+tools:
+  oh-my-pi: latest
+mounts:
+  ~/.omp:
+    source: ~/.omp
+    create: true
+    read_only: false
 ```
 
 </details>
