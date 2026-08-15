@@ -42,7 +42,8 @@ the `mise` profile extends.
 - `.MemBytes int64` — total host RAM in bytes, read from `/proc/meminfo`
   (`MemTotal`). If the file is unreadable or the key is missing, the value
   renders to empty (see §3 degradation).
-- `.NumCPU int` — `runtime.NumCPU()` (logical CPUs).
+- `.NumCPU int64` — `runtime.NumCPU()` (logical CPUs), kept `int64` so it
+  composes with `div`.
 
 The func map gains `div` (`func(a, b int64) int64`, integer division) so
 fractions can be expressed in YAML. Go's `text/template` coerces the literal

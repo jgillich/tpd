@@ -24,7 +24,7 @@ type tmplData struct {
 	UID      string
 	Ports    map[string]string
 	MemBytes int64
-	NumCPU   int
+	NumCPU   int64
 }
 
 func expandEnvMap() map[string]string {
@@ -113,7 +113,7 @@ func renderTemplate(s string, data tmplData) (string, error) {
 // otherwise determines runtimeHome based on the mode.
 func ResolveTildes(cfg Profile, mode workspace.Mode, hostHome, runtimeHome string, ports map[string]string) (Profile, error) {
 	out := cfg
-	data := tmplData{Env: expandEnvMap(), UID: currentUID(), Ports: ports, MemBytes: hostMemBytes(), NumCPU: runtime.NumCPU()}
+	data := tmplData{Env: expandEnvMap(), UID: currentUID(), Ports: ports, MemBytes: hostMemBytes(), NumCPU: int64(runtime.NumCPU())}
 
 	// resolveTarget resolves an in-container mount/cache/file target. In
 	// unknown mode (dry-run without a detected engine mode) a ~-prefixed target

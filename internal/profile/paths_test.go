@@ -807,7 +807,7 @@ func TestResolveTildesRendersResources(t *testing.T) {
 	cfg := Profile{
 		Resources: &Resources{
 			Memory: "{{ div .MemBytes 2 }}",
-			CPUs:   "{{ .NumCPU }}",
+			CPUs:   "{{ div .NumCPU 2 }}",
 		},
 	}
 	out, err := ResolveTildes(cfg, workspace.ModeRootless, "/home/me", "/home/me", nil)
@@ -824,8 +824,11 @@ func TestResolveTildesRendersResources(t *testing.T) {
 	if want := hostMemBytes() / 2; mem != want {
 		t.Errorf("rendered memory = %d, want %d (half of host)", mem, want)
 	}
-	if want := strconv.Itoa(runtime.NumCPU()); out.Resources.CPUs != want {
-		t.Errorf("rendered cpus = %q, want %q", out.Resources.CPUs, want)
+	if want := strconv.Itoa(runtime.NumCPU() / 2); out.Resources.CPUs != want {
+		t.Errorf("rendered cpus = %q, want %q (half of host cores)", out.Resources.CPUs, want)
+	}
+	if got := div(int64(runtime.NumCPU()), 2); got != int64(runtime.NumCPU()/2) {
+		t.Errorf("div on NumCPU = %d, want %d", got, runtime.NumCPU()/2)
 	}
 }
 
