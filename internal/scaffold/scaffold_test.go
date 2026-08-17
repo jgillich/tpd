@@ -707,9 +707,9 @@ func TestFragmentFileExistenceWarning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	// All fragment mounts are optional, so missing sources should not produce warnings.
+	// Fragment mount sources are skipped when missing, so no warnings.
 	if strings.Contains(stderr.String(), "does not exist") {
-		t.Errorf("stderr should not contain file-existence warnings for optional mounts, got: %q", stderr.String())
+		t.Errorf("stderr should not contain file-existence warnings, got: %q", stderr.String())
 	}
 }
 

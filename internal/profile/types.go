@@ -237,7 +237,6 @@ type Mount struct {
 	Service  string `yaml:"service,omitempty"`
 	Socket   string `yaml:"socket,omitempty"`
 	ReadOnly bool   `yaml:"read_only,omitempty"`
-	Optional bool   `yaml:"optional,omitempty"`
 	Create   bool   `yaml:"create,omitempty"` // mkdir the source if missing (directories only)
 }
 
@@ -246,7 +245,7 @@ type Mount struct {
 // the kind-appropriate default.
 func (m *Mount) UnmarshalYAML(value *yaml.Node) error {
 	if err := checkKnownFields(value, "profile.Mount", map[string]bool{
-		"source": true, "service": true, "socket": true, "read_only": true, "optional": true, "create": true,
+		"source": true, "service": true, "socket": true, "read_only": true, "create": true,
 	}); err != nil {
 		return err
 	}
@@ -281,14 +280,12 @@ func (m Mount) MarshalYAML() (interface{}, error) {
 		Service  string `yaml:"service,omitempty"`
 		Socket   string `yaml:"socket,omitempty"`
 		ReadOnly *bool  `yaml:"read_only,omitempty"`
-		Optional bool   `yaml:"optional"`
 		Create   bool   `yaml:"create,omitempty"`
 	}{
-		Source:   m.Source,
-		Service:  m.Service,
-		Socket:   m.Socket,
-		Optional: m.Optional,
-		Create:   m.Create,
+		Source:  m.Source,
+		Service: m.Service,
+		Socket:  m.Socket,
+		Create:  m.Create,
 	}
 	defaultRO := true
 	if m.Service != "" {

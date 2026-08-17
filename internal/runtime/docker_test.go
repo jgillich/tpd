@@ -541,38 +541,52 @@ func TestBuildMountsDoesNotCreateWithoutFlag(t *testing.T) {
 	}
 }
 
-func TestBuildMountsFailsCreateForRequiredMount(t *testing.T) {
+func TestBuildMountsPassesThroughFailedCreate(t *testing.T) {
 	// A dangling symlink component makes MkdirAll fail (mkdir on the existing
-	// symlink → EEXIST) while os.Stat(source) still reports ENOENT; a required
-	// mount must fail the launch, not be silently dropped.
+	// symlink → EEXIST) while os.Stat(source) still reports ENOENT. The mount
+	// is kept as-is; the container engine reports the bind failure at launch.
 	link := filepath.Join(t.TempDir(), "dangling")
 	if err := os.Symlink(filepath.Join(t.TempDir(), "missing"), link); err != nil {
 		t.Fatal(err)
 	}
+	src := filepath.Join(link, "sub")
 	spec := Spec{
 		Workspace: WorkspaceSpec{HostPath: "/tmp", Target: "/workspace", Mode: workspace.ModeRootful},
 		Mounts: []MountSpec{
-			{Target: "/data", Source: filepath.Join(link, "sub"), Create: true},
+			{Target: "/data", Source: src, Create: true},
 		},
 	}
-	if _, err := buildMounts(spec, "/root", false); err == nil {
-		t.Fatal("required mount with failed create should error, got nil")
+	m, err := buildMounts(spec, "/root", false)
+	if err != nil {
+		t.Fatalf("buildMounts should not error on failed create: %v", err)
+	}
+	found := false
+	for _, mt := range m {
+		if mt.Target == "/data" {
+			found = true
+			if mt.Source != src {
+				t.Errorf("mount source = %q, want %q", mt.Source, src)
+			}
+		}
+	}
+	if !found {
+		t.Error("mount with failed create should still be present (engine reports the error)")
 	}
 }
 
-func TestBuildMountsSkipsOptionalMissing(t *testing.T) {
+func TestBuildMountsSkipsMissingSourceByDefault(t *testing.T) {
 	spec := Spec{
 		Workspace: WorkspaceSpec{HostPath: "/tmp", Target: "/workspace", Mode: workspace.ModeRootful},
 		Mounts: []MountSpec{
-			{Target: "/etc/hosts", Source: "/etc/hosts", ReadOnly: true, Optional: true},
-			{Target: "/nonexistent", Source: "/this/does/not/exist", Optional: true},
+			{Target: "/etc/hosts", Source: "/etc/hosts", ReadOnly: true},
+			{Target: "/nonexistent", Source: "/this/does/not/exist"},
 		},
 	}
 	m, err := buildMounts(spec, "/root", false)
 	if err != nil {
 		t.Fatalf("buildMounts: %v", err)
 	}
-	// Should contain workspace + /etc/hosts but skip the nonexistent optional mount.
+	// Should contain workspace + /etc/hosts but skip the nonexistent mount.
 	found := map[string]bool{}
 	for _, mt := range m {
 		found[mt.Target] = true
@@ -581,10 +595,10 @@ func TestBuildMountsSkipsOptionalMissing(t *testing.T) {
 		t.Error("workspace mount missing")
 	}
 	if !found["/etc/hosts"] {
-		t.Error("/etc/hosts optional mount should be present (source exists)")
+		t.Error("/etc/hosts mount should be present (source exists)")
 	}
 	if found["/nonexistent"] {
-		t.Error("nonexistent optional mount should be skipped")
+		t.Error("nonexistent mount should be skipped")
 	}
 }
 
@@ -1241,9 +1255,10 @@ func TestBuildMountsNoBusOverlayWithoutRuntimeDir(t *testing.T) {
 }
 
 func TestBuildMountsSkipsOverlayWhenBusAlreadyMounted(t *testing.T) {
+	src := t.TempDir()
 	spec := Spec{
 		Workspace: WorkspaceSpec{HostPath: "/ws", Target: "/ws"},
-		Mounts:    []MountSpec{{Target: "/run/user/1000/bus", Source: "/host/socket", ReadOnly: true}},
+		Mounts:    []MountSpec{{Target: "/run/user/1000/bus", Source: src, ReadOnly: true}},
 		Env:       map[string]string{"XDG_RUNTIME_DIR": "/run/user/1000"},
 	}
 	mounts, err := buildMounts(spec, "/root", false)

@@ -132,19 +132,19 @@ func ResolveTildes(cfg Profile, mode workspace.Mode, hostHome, runtimeHome strin
 		for target, m := range out.Mounts {
 			newTarget, err := resolveTarget(target, data)
 			if err != nil {
-				if m.Optional && errors.Is(err, errEmptyPath) {
+				if errors.Is(err, errEmptyPath) {
 					continue
 				}
 				return out, fmt.Errorf("mount %q: %w", target, err)
 			}
 			// An empty rendered source is a config error (a bind mount with no
-			// source fails confusingly later); optional mounts degrade to
-			// absent. Service-socket mounts have no source by definition, so
-			// only bind mounts are checked for one.
+			// source fails confusingly later); a template that renders empty
+			// drops the mount. Service-socket mounts have no source by
+			// definition, so only bind mounts are checked for one.
 			if m.Service == "" {
 				m.Source, err = resolvePath(m.Source, hostHome, data)
 				if err != nil {
-					if m.Optional && errors.Is(err, errEmptyPath) {
+					if errors.Is(err, errEmptyPath) {
 						continue
 					}
 					return out, fmt.Errorf("mount %q source: %w", target, err)
@@ -244,7 +244,7 @@ func ResolveTildes(cfg Profile, mode workspace.Mode, hostHome, runtimeHome strin
 					// Targets are in-container paths; expand against /root.
 					newTarget, err := resolvePath(target, serviceHome, data)
 					if err != nil {
-						if m.Optional && errors.Is(err, errEmptyPath) {
+						if errors.Is(err, errEmptyPath) {
 							continue
 						}
 						return out, fmt.Errorf("service %s mount %q: %w", name, target, err)
@@ -252,7 +252,7 @@ func ResolveTildes(cfg Profile, mode workspace.Mode, hostHome, runtimeHome strin
 					// Sources are host paths; expand against hostHome.
 					m.Source, err = resolvePath(m.Source, hostHome, data)
 					if err != nil {
-						if m.Optional && errors.Is(err, errEmptyPath) {
+						if errors.Is(err, errEmptyPath) {
 							continue
 						}
 						return out, fmt.Errorf("service %s mount %q source: %w", name, target, err)
@@ -349,7 +349,8 @@ func renderArgs(args []string, data tmplData) ([]string, error) {
 }
 
 // errEmptyPath is returned by resolvePath when a rendered path resolves empty.
-// Optional mounts treat it as "drop the mount"; everything else propagates it.
+// Mounts treat it as "drop the mount" (a template that renders empty means
+// the host path doesn't exist); everything else propagates it.
 var errEmptyPath = errors.New("resolved to an empty path after template expansion (is the host variable set?)")
 
 // resolvePath renders raw as a {{ }} template, expands a resulting ~/ against

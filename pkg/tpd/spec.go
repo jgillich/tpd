@@ -41,7 +41,6 @@ func buildSpec(opts LaunchOpts, cfg profile.Profile, mode workspace.Mode, hostHo
 			Service:  m.Service,
 			Socket:   m.Socket,
 			ReadOnly: m.ReadOnly,
-			Optional: m.Optional,
 			Create:   m.Create,
 		})
 		if m.Service != "" {
@@ -79,7 +78,6 @@ func buildSpec(opts LaunchOpts, cfg profile.Profile, mode workspace.Mode, hostHo
 				Target:   target,
 				Source:   m.Source,
 				ReadOnly: m.ReadOnly,
-				Optional: m.Optional,
 				Create:   m.Create,
 			})
 		}

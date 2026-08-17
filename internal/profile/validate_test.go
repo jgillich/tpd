@@ -707,8 +707,8 @@ func TestValidateMounts(t *testing.T) {
 	}{
 		{"tilde target", "~/.config/foo", Mount{Source: "~/.config/foo"}, false},
 		{"absolute target", "/etc/hosts", Mount{Source: "/etc/hosts"}, false},
-		{"template target", `{{ .Env.XDG_RUNTIME_DIR }}`, Mount{Source: "/tmp", Optional: true}, false},
-		{"template source", "/tmp", Mount{Source: `{{ or (index .Env "DOCKER_HOST") "/var/run/docker.sock" }}`, Optional: true}, false},
+		{"template target", `{{ .Env.XDG_RUNTIME_DIR }}`, Mount{Source: "/tmp"}, false},
+		{"template source", "/tmp", Mount{Source: `{{ or (index .Env "DOCKER_HOST") "/var/run/docker.sock" }}`}, false},
 		{"service-socket exempt", "/sock", Mount{Service: "registry", Socket: "registry"}, false},
 		{"relative source", "~/.config/foo", Mount{Source: "relative/path"}, true},
 		{"relative target", "relative", Mount{Source: "/tmp"}, true},
@@ -859,15 +859,6 @@ func TestValidateMountServiceSocketWithCreate(t *testing.T) {
 	err := validate(rc)
 	if err == nil || !strings.Contains(err.Error(), "mount /sock: must not set create with service/socket") {
 		t.Fatalf("expected no-create-with-service error, got: %v", err)
-	}
-}
-
-func TestValidateMountServiceSocketWithOptional(t *testing.T) {
-	rc := validServiceProfile()
-	rc.Mounts = map[string]Mount{"/sock": {Service: "registry", Socket: "registry", Optional: true}}
-	err := validate(rc)
-	if err == nil || !strings.Contains(err.Error(), "mount /sock: must not set optional with service/socket") {
-		t.Fatalf("expected no-optional-with-service error, got: %v", err)
 	}
 }
 

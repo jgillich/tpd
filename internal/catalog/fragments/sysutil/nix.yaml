@@ -12,7 +12,6 @@ mounts:
     source: ~/.config/nix
     create: true
     read_only: false
-    optional: true
 files:
   /etc/profile.d/nix.sh:
     content: |

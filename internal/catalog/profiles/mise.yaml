@@ -12,7 +12,6 @@ packages:
 mounts:
   /etc/mise:
     source: ~/.config/mise
-    optional: true
 caches:
   mise:
     - ~/.local/share/mise

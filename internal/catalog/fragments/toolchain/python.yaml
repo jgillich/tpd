@@ -10,12 +10,10 @@ mounts:
     source: ~/.config/pypoetry
     create: true
     read_only: false
-    optional: true
   ~/.config/pdm:
     source: ~/.config/pdm
     create: true
     read_only: false
-    optional: true
 tools:
   python: latest
   uv: latest

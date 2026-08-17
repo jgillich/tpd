@@ -160,7 +160,7 @@ Every launchable profile needs `version`, `image`, and `command`. Fragments only
 | `repos` | `map[string]repo` | Extra apt sources, keyed by a logical repo name; each value is `extrepo: <name>`, resolved at build time for the base image's Debian version. v1 supports extrepo entries; custom URL repositories are not yet buildable. |
 | `files` | `map[path]file` | Files written into the container at launch, keyed by target path. Each entry: `content` (inline, `{{ }}` templates), `mode` (default `0644`). |
 | `command` | string[] | Command to run. User args on the CLI replace the default args. |
-| `mounts` | `map[target]mount` | Bind mounts, keyed by container target. Host binds use `source`, `read_only` (default `true`), `optional`, `create`; service-socket mounts use `service` + `socket`. `~` in `source` → host `$HOME`; `~` as key → runtime home. |
+| `mounts` | `map[target]mount` | Bind mounts, keyed by container target. Host binds use `source`, `read_only` (default `true`), `create`; service-socket mounts use `service` + `socket`. `~` in `source` → host `$HOME`; `~` as key → runtime home. |
 | `services` | `map[string]service` | Companion daemon containers, keyed by service name, that start before the main container and stop after it, exposing sockets the main container mounts. Each value is a mini-profile (`image`, `command`, `caches`, `exposes`, etc.). See [Companion services](#companion-services-services). |
 | `caches` | `map[string]path \| path[]` | Named-volume-backed cache dirs shared across profiles, keyed by cache name. Each value is a container path (scalar) or a list of paths. |
 | `tools` | `map[string]tool` | mise-managed tools, keyed by name. Each value is a version string or `{version, sha256}`. `appimage:` tools stay on `latest` and are digest-verified at install (against GitHub's per-asset digest or a checksum sidecar); an explicit `sha256` or per-arch `sha256: {amd64, aarch64}` is optional. |
@@ -242,7 +242,7 @@ $ tpd edit myagent          # open in $EDITOR
 
 ## Fragments
 
-Fragments are small, composable building blocks — a tool's cache, a host config mount, or a credential set. `tpd init` merges selected fragments into a user profile. Built-in fragment mounts are `optional: true`, so missing host paths are skipped with a warning. Fragments may extend other fragments but never profiles.
+Fragments are small, composable building blocks — a tool's cache, a host config mount, or a credential set. `tpd init` merges selected fragments into a user profile. Fragment host mounts whose source doesn't exist are skipped (unless `create: true` forces the directory). Fragments may extend other fragments but never profiles.
 
 User configuration lives below `$XDG_CONFIG_HOME/tpd/` (normally `~/.config/tpd/`): profiles are in `profiles/` and fragments are in `fragments/`. User profiles shadow built-ins with the same name; name collisions between profiles and fragments are errors.
 

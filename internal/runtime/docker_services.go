@@ -381,8 +381,8 @@ func (d *DockerRuntime) createService(ctx context.Context, spec Spec, svc Servic
 // buildServiceMounts assembles a service container's mounts: cache volumes
 // (same subpath/fallback logic as buildMounts), one bind per unique expose
 // parent dir from the host run-dir, then the service's own host-bind mounts
-// with their Optional/Create semantics. Never called for the main container's
-// workspace bind: services get no access to the user's project.
+// with their Create/skip-missing semantics. Never called for the main
+// container's workspace bind: services get no access to the user's project.
 func buildServiceMounts(svc ServiceSpec, subpath bool, runDir string, exposeParents []string) ([]mount.Mount, error) {
 	var m []mount.Mount
 	for _, c := range svc.Caches {
@@ -405,19 +405,13 @@ func buildServiceMounts(svc ServiceSpec, subpath bool, runDir string, exposePare
 		if mt.Create {
 			if _, err := os.Stat(mt.Source); os.IsNotExist(err) {
 				if err := os.MkdirAll(mt.Source, 0o755); err != nil {
-					if mt.Optional {
-						fmt.Fprintf(os.Stderr, "warning: creating mount source %s: %v\n", mt.Source, err)
-						continue
-					}
-					return nil, fmt.Errorf("create mount source %s: %w", mt.Source, err)
+					fmt.Fprintf(os.Stderr, "warning: creating mount source %s: %v\n", mt.Source, err)
+				} else {
+					fmt.Fprintf(os.Stderr, "creating mount source %s\n", mt.Source)
 				}
-				fmt.Fprintf(os.Stderr, "creating mount source %s\n", mt.Source)
 			}
-		}
-		if mt.Optional {
-			if _, err := os.Stat(mt.Source); err != nil {
-				continue
-			}
+		} else if _, err := os.Stat(mt.Source); err != nil {
+			continue
 		}
 		m = append(m, mount.Mount{
 			Type:     mount.TypeBind,

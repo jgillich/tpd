@@ -67,7 +67,6 @@ type MountSpec struct {
 	Target   string
 	Source   string
 	ReadOnly bool
-	Optional bool
 	Create   bool
 	Service  string
 	Socket   string

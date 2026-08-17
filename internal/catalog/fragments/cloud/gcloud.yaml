@@ -8,4 +8,3 @@ mounts:
     source: ~/.config/gcloud
     create: true
     read_only: false
-    optional: true

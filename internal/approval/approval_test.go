@@ -892,7 +892,7 @@ func TestFilterMountItemBody(t *testing.T) {
 		Profile: profile.Profile{Mounts: map[string]profile.Mount{
 			"~/.cache/opencode": {Source: "~/.cache/opencode", ReadOnly: false},
 			"/run/podman.sock":  {Service: "podman", Socket: "podman"},
-			"~/.ssh":            {Source: "~/.ssh", ReadOnly: true, Optional: true, Create: true},
+			"~/.ssh":            {Source: "~/.ssh", ReadOnly: true, Create: true},
 		}},
 		Prov: profile.Provenance{Mounts: map[string]profile.Contributor{
 			"~/.cache/opencode": core,
@@ -912,7 +912,7 @@ func TestFilterMountItemBody(t *testing.T) {
 	want := map[string]string{
 		"~/.cache/opencode": "target: ~/.cache/opencode\nsource: ~/.cache/opencode\naccess: read/write",
 		"/run/podman.sock":  "target: /run/podman.sock\nsource: via service podman\naccess: socket",
-		"~/.ssh":            "target: ~/.ssh\nsource: ~/.ssh\naccess: read-only\noptional: true\ncreate: true",
+		"~/.ssh":            "target: ~/.ssh\nsource: ~/.ssh\naccess: read-only\ncreate: true",
 	}
 	for k, w := range want {
 		if byKey[k] != w {

@@ -893,19 +893,13 @@ func buildMounts(spec Spec, runtimeHome string, subpath bool) ([]mount.Mount, er
 		if mt.Create {
 			if _, err := os.Stat(mt.Source); os.IsNotExist(err) {
 				if err := os.MkdirAll(mt.Source, 0o755); err != nil {
-					if mt.Optional {
-						fmt.Fprintf(os.Stderr, "warning: creating mount source %s: %v\n", mt.Source, err)
-						continue
-					}
-					return nil, fmt.Errorf("create mount source %s: %w", mt.Source, err)
+					fmt.Fprintf(os.Stderr, "warning: creating mount source %s: %v\n", mt.Source, err)
+				} else {
+					fmt.Fprintf(os.Stderr, "creating mount source %s\n", mt.Source)
 				}
-				fmt.Fprintf(os.Stderr, "creating mount source %s\n", mt.Source)
 			}
-		}
-		if mt.Optional {
-			if _, err := os.Stat(mt.Source); err != nil {
-				continue
-			}
+		} else if _, err := os.Stat(mt.Source); err != nil {
+			continue
 		}
 		m = append(m, mount.Mount{
 			Type:     mount.TypeBind,

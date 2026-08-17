@@ -6,4 +6,3 @@ tools:
 mounts:
   ~/.aws:
     source: ~/.aws
-    optional: true

@@ -3,4 +3,3 @@ mounts:
   ~/.gitconfig:
     source: ~/.gitconfig
     read_only: true
-    optional: true

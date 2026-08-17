@@ -27,7 +27,7 @@ func ComputeApprovalHash(res profile.Resolved) string {
 	for _, k := range sortedKeys(res.Mounts) {
 		m := res.Mounts[k]
 		c := res.Prov.Mounts[k]
-		emit("mounts", k, c, fmt.Sprintf("mount %s %s %s %s %v %v %v", k, m.Source, m.Service, m.Socket, m.ReadOnly, m.Optional, m.Create))
+		emit("mounts", k, c, fmt.Sprintf("mount %s %s %s %s %v %v", k, m.Source, m.Service, m.Socket, m.ReadOnly, m.Create))
 	}
 	for _, k := range sortedKeys(res.Devices) {
 		d := res.Devices[k]
@@ -85,7 +85,7 @@ func renderServiceDefinition(svc profile.Service) string {
 	mntParts := make([]string, 0, len(mountKeys))
 	for _, k := range mountKeys {
 		m := svc.Mounts[k]
-		mntParts = append(mntParts, fmt.Sprintf("%s=%s;ro=%v;opt=%v;create=%v", k, m.Source, m.ReadOnly, m.Optional, m.Create))
+		mntParts = append(mntParts, fmt.Sprintf("%s=%s;ro=%v;create=%v", k, m.Source, m.ReadOnly, m.Create))
 	}
 	fmt.Fprintf(&b, "mounts={%s};", strings.Join(mntParts, ","))
 	envKeys := sortedKeys(svc.Env)

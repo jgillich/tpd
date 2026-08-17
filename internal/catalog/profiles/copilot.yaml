@@ -12,4 +12,3 @@ mounts:
     source: ~/.copilot
     create: true
     read_only: false
-    optional: true

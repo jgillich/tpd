@@ -460,9 +460,6 @@ func renderMountBody(k string, m profile.Mount) string {
 			access = "read/write"
 		}
 		fmt.Fprintf(&b, "access: %s\n", access)
-		if m.Optional {
-			fmt.Fprintf(&b, "optional: true\n")
-		}
 		if m.Create {
 			fmt.Fprintf(&b, "create: true\n")
 		}

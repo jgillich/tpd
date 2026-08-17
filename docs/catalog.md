@@ -96,7 +96,6 @@ mounts:
     source: ~/.config/amp
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -266,7 +265,6 @@ mounts:
     source: ~/.copilot
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -384,7 +382,6 @@ packages:
 mounts:
   /etc/mise:
     source: ~/.config/mise
-    optional: true
 caches:
   mise:
     - ~/.local/share/mise
@@ -544,12 +541,10 @@ mounts:
     source: ~/.config/powershell
     create: true
     read_only: false
-    optional: true
   ~/.local/share/powershell:
     source: ~/.local/share/powershell
     create: true
     read_only: false
-    optional: true
 tools:
   powershell-core: latest
 ```
@@ -636,7 +631,6 @@ mounts:
     source: ~/.config/trivy
     create: true
     read_only: false
-    optional: true
 tools:
   trivy: latest
 ```
@@ -706,7 +700,6 @@ tools:
 mounts:
   ~/.aws:
     source: ~/.aws
-    optional: true
 ```
 
 </details>
@@ -728,7 +721,6 @@ mounts:
     source: ~/.azure
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -750,7 +742,6 @@ mounts:
     source: ~/.config/gcloud
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -774,7 +765,6 @@ mounts:
     source: ~/.config/helm
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -798,12 +788,10 @@ tools:
 mounts:
   ~/.kube:
     source: ~/.kube
-    optional: true
   ~/.config/k9s:
     source: ~/.config/k9s
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -825,7 +813,6 @@ caches:
 mounts:
   ~/.terraformrc:
     source: ~/.terraformrc
-    optional: true
 ```
 
 </details>
@@ -883,10 +870,8 @@ devices:
 mounts:
   /tmp/.X11-unix:
     source: /tmp/.X11-unix
-    optional: true
   '{{ if and .Env.XDG_RUNTIME_DIR .Env.WAYLAND_DISPLAY }}{{ .Env.XDG_RUNTIME_DIR }}/{{ .Env.WAYLAND_DISPLAY }}{{ end }}':
     source: '{{ if and .Env.XDG_RUNTIME_DIR .Env.WAYLAND_DISPLAY }}{{ .Env.XDG_RUNTIME_DIR }}/{{ .Env.WAYLAND_DISPLAY }}{{ end }}'
-    optional: true
 environment:
   WAYLAND_DISPLAY: '{{ .Env.WAYLAND_DISPLAY }}'
   DISPLAY: '{{ .Env.DISPLAY }}'
@@ -972,7 +957,6 @@ packages:
 mounts:
   '{{ .Env.XDG_RUNTIME_DIR }}':
     source: '{{ .Env.XDG_RUNTIME_DIR }}'
-    optional: true
 environment:
   XDG_RUNTIME_DIR: '{{ .Env.XDG_RUNTIME_DIR }}'
 ```
@@ -1060,7 +1044,6 @@ mounts:
   /var/run/docker.sock:
     source: '{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") "/var/run/docker.sock" }}'
     read_only: false
-    optional: true
 environment:
   DOCKER_HOST: unix:///var/run/docker.sock
 ```
@@ -1088,7 +1071,6 @@ mounts:
     source: ~/.config/nix
     create: true
     read_only: false
-    optional: true
 files:
   /etc/profile.d/nix.sh:
     content: |
@@ -1123,7 +1105,6 @@ mounts:
   /var/run/docker.sock:
     source: '{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") (printf "/run/user/%s/podman/podman.sock" (uid)) }}'
     read_only: false
-    optional: true
 environment:
   DOCKER_HOST: unix:///var/run/docker.sock
 ```
@@ -1143,11 +1124,9 @@ meta:
 mounts:
   ~/.ssh:
     source: ~/.ssh
-    optional: true
   ~/.ssh/known_hosts:
     source: ~/.ssh/known_hosts
     read_only: false
-    optional: true
 packages:
   - openssh-client
 ```
@@ -1167,7 +1146,6 @@ meta:
 mounts:
   ~/.vault-token:
     source: ~/.vault-token
-    optional: true
 tools:
   vault: latest
 ```
@@ -1208,19 +1186,14 @@ tools:
 mounts:
   ~/.bashrc:
     source: ~/.bashrc
-    optional: true
   ~/.bash_profile:
     source: ~/.bash_profile
-    optional: true
   ~/.bash_aliases:
     source: ~/.bash_aliases
-    optional: true
   ~/.profile:
     source: ~/.profile
-    optional: true
   ~/.inputrc:
     source: ~/.inputrc
-    optional: true
 packages:
   - bash
 ```
@@ -1523,12 +1496,10 @@ mounts:
     source: ~/.config/pypoetry
     create: true
     read_only: false
-    optional: true
   ~/.config/pdm:
     source: ~/.config/pdm
     create: true
     read_only: false
-    optional: true
 tools:
   python: latest
   uv: latest
@@ -1661,7 +1632,6 @@ meta:
 mounts:
   ~/.gitconfig:
     source: ~/.gitconfig
-    optional: true
 packages:
   - git
 ```
@@ -1685,7 +1655,6 @@ mounts:
     source: ~/.config/gh
     create: true
     read_only: false
-    optional: true
 ```
 
 </details>
@@ -1706,7 +1675,6 @@ mounts:
     source: ~/.config/glab-cli
     create: true
     read_only: false
-    optional: true
 tools:
   glab: latest
 ```

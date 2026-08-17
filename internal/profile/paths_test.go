@@ -103,7 +103,7 @@ func TestResolveTildesTemplateExpansion(t *testing.T) {
 
 	cfg := Profile{
 		Mounts: map[string]Mount{
-			"/var/run/docker.sock": {Source: `{{ or (index .Env "TPD_TEST_SOCK") "/var/run/docker.sock" }}`, Optional: true},
+			"/var/run/docker.sock": {Source: `{{ or (index .Env "TPD_TEST_SOCK") "/var/run/docker.sock" }}`},
 		},
 	}
 	out, err := ResolveTildes(cfg, workspace.ModeRootful, "/home/me", "/root", nil)
@@ -120,7 +120,7 @@ func TestResolveTildesTemplateFallback(t *testing.T) {
 	os.Unsetenv("TPD_UNSET_VAR")
 	cfg := Profile{
 		Mounts: map[string]Mount{
-			"/var/run/docker.sock": {Source: `{{ or (index .Env "TPD_UNSET_VAR") "/var/run/docker.sock" }}`, Optional: true},
+			"/var/run/docker.sock": {Source: `{{ or (index .Env "TPD_UNSET_VAR") "/var/run/docker.sock" }}`},
 		},
 	}
 	out, err := ResolveTildes(cfg, workspace.ModeRootful, "/home/me", "/root", nil)
@@ -155,8 +155,7 @@ func TestResolveTildesTrimPrefix(t *testing.T) {
 	cfg := Profile{
 		Mounts: map[string]Mount{
 			"/var/run/docker.sock": {
-				Source:   `{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") "/run/user/1000/podman/podman.sock" }}`,
-				Optional: true,
+				Source: `{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") "/run/user/1000/podman/podman.sock" }}`,
 			},
 		},
 	}
@@ -176,8 +175,7 @@ func TestResolveTildesTrimPrefixFallback(t *testing.T) {
 	cfg := Profile{
 		Mounts: map[string]Mount{
 			"/var/run/docker.sock": {
-				Source:   `{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") (printf "/run/user/%s/podman/podman.sock" (uid)) }}`,
-				Optional: true,
+				Source: `{{ or (trimPrefix (index .Env "DOCKER_HOST") "unix://") (printf "/run/user/%s/podman/podman.sock" (uid)) }}`,
 			},
 		},
 	}
@@ -293,23 +291,11 @@ func TestResolveTildesPortsInEnvironment(t *testing.T) {
 	}
 }
 
-func TestResolveTildesEmptyMountSourceErrorsWhenRequired(t *testing.T) {
+func TestResolveTildesEmptyMountSourceDropped(t *testing.T) {
 	os.Unsetenv("TPD_UNSET_VAR")
 	cfg := Profile{
 		Mounts: map[string]Mount{
 			"/data": {Source: `{{ or (index .Env "TPD_UNSET_VAR") "" }}`},
-		},
-	}
-	if _, err := ResolveTildes(cfg, workspace.ModeRootful, "/home/me", "/root", nil); err == nil {
-		t.Fatal("non-optional mount with empty rendered source should error, got nil")
-	}
-}
-
-func TestResolveTildesEmptyMountSourceSkippedWhenOptional(t *testing.T) {
-	os.Unsetenv("TPD_UNSET_VAR")
-	cfg := Profile{
-		Mounts: map[string]Mount{
-			"/data": {Source: `{{ or (index .Env "TPD_UNSET_VAR") "" }}`, Optional: true},
 		},
 	}
 	out, err := ResolveTildes(cfg, workspace.ModeRootful, "/home/me", "/root", nil)
@@ -317,7 +303,7 @@ func TestResolveTildesEmptyMountSourceSkippedWhenOptional(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, exists := out.Mounts["/data"]; exists {
-		t.Error("optional mount with empty source should be dropped, not kept")
+		t.Error("mount with empty rendered source should be dropped, not kept")
 	}
 }
 
@@ -326,7 +312,7 @@ func TestResolveTildesEmptyMountSourceSkippedWhenOptional(t *testing.T) {
 // missing variable leaves a dangling "/" (or "/" itself when both are unset),
 // which exists and would bind the host root. The {{ if and ... }} guard
 // renders empty when either variable is missing, and ResolveTildes drops
-// empty optional mounts.
+// mounts with empty rendered paths.
 const guardedWaylandMount = `{{ if and .Env.XDG_RUNTIME_DIR .Env.WAYLAND_DISPLAY }}{{ .Env.XDG_RUNTIME_DIR }}/{{ .Env.WAYLAND_DISPLAY }}{{ end }}`
 
 func TestResolveTildesGuardedWaylandMount(t *testing.T) {
@@ -347,7 +333,7 @@ func TestResolveTildesGuardedWaylandMount(t *testing.T) {
 			t.Setenv("WAYLAND_DISPLAY", tc.display)
 			cfg := Profile{
 				Mounts: map[string]Mount{
-					guardedWaylandMount: {Source: guardedWaylandMount, Optional: true},
+					guardedWaylandMount: {Source: guardedWaylandMount},
 				},
 			}
 			out, err := ResolveTildes(cfg, workspace.ModeRootless, "/home/me", "/home/me", nil)

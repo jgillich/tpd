@@ -10,4 +10,3 @@ mounts:
     source: ~/.config/helm
     create: true
     read_only: false
-    optional: true

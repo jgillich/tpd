@@ -509,9 +509,6 @@ func validateMountServices(rc RawProfile) error {
 		if hasService && m.Create {
 			return ProfileError{Path: rc.Path, Message: fmt.Sprintf("mount %s: must not set create with service/socket", target)}
 		}
-		if hasService && m.Optional {
-			return ProfileError{Path: rc.Path, Message: fmt.Sprintf("mount %s: must not set optional with service/socket", target)}
-		}
 		if hasService && m.ReadOnly {
 			return ProfileError{Path: rc.Path, Message: fmt.Sprintf("mount %s: read_only must be false for service/socket mounts (connect fails on a read-only bind)", target)}
 		}

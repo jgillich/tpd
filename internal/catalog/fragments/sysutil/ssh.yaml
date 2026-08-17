@@ -4,10 +4,8 @@ meta:
 mounts:
   ~/.ssh:
     source: ~/.ssh
-    optional: true
   ~/.ssh/known_hosts:
     source: ~/.ssh/known_hosts
     read_only: false
-    optional: true
 packages:
   - openssh-client

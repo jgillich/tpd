@@ -42,10 +42,8 @@ devices:
 mounts:
   /tmp/.X11-unix:
     source: /tmp/.X11-unix
-    optional: true
   '{{ if and .Env.XDG_RUNTIME_DIR .Env.WAYLAND_DISPLAY }}{{ .Env.XDG_RUNTIME_DIR }}/{{ .Env.WAYLAND_DISPLAY }}{{ end }}':
     source: '{{ if and .Env.XDG_RUNTIME_DIR .Env.WAYLAND_DISPLAY }}{{ .Env.XDG_RUNTIME_DIR }}/{{ .Env.WAYLAND_DISPLAY }}{{ end }}'
-    optional: true
 environment:
   WAYLAND_DISPLAY: '{{ .Env.WAYLAND_DISPLAY }}'
   DISPLAY: '{{ .Env.DISPLAY }}'

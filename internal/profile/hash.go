@@ -45,7 +45,7 @@ func computeServiceHash(svc Service) string {
 	for _, target := range sortedKeys(svc.Mounts) {
 		m := svc.Mounts[target]
 		field("mount", target, m.Source, m.Service, m.Socket,
-			strconv.FormatBool(m.ReadOnly), strconv.FormatBool(m.Optional), strconv.FormatBool(m.Create))
+			strconv.FormatBool(m.ReadOnly), strconv.FormatBool(m.Create))
 	}
 	for _, name := range sortedKeys(svc.Caches) {
 		for _, p := range svc.Caches[name] {

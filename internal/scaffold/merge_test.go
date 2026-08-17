@@ -14,7 +14,7 @@ extends:
 mounts:
   ~/.gitconfig:
     source: ~/.gitconfig
-    optional: true
+    read_only: true
 `
 	generated := "version: 1\nextends:\n    - core/opencode\n    - core/toolchain/javascript\n"
 	out, err := mergeYAML([]byte(existing), []byte(generated))

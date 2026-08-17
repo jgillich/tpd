@@ -12,6 +12,5 @@ mounts:
     source: ~/.config/trivy
     create: true
     read_only: false
-    optional: true
 tools:
   trivy: latest
