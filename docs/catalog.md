@@ -288,6 +288,8 @@ command: ["crush"]
 tools:
   crush: latest
 mounts:
+  ~/.config/AGENTS.md:
+    source: ~/.config/AGENTS.md
   ~/.config/crush:
     source: ~/.config/crush
     create: true
@@ -1570,6 +1572,7 @@ meta:
 packages:
   - rustup
 caches:
+  # CARGO_HOME is fingerprinted; avoids rebuilds
   cargo: '{{ or .Env.CARGO_HOME "~/.cargo" }}'
   rustup: ~/.rustup
   sccache: ~/.cache/sccache
@@ -1579,10 +1582,6 @@ tools:
 environment:
   RUSTC_WRAPPER: sccache
   RUSTFLAGS: -C link-arg=-fuse-ld=mold
-  # Mirror a custom host CARGO_HOME into the container so the cargo cache
-  # volume mount and cargo's actual cache location stay in sync; when unset
-  # this renders empty and buildEnv omits it, leaving cargo's $HOME/.cargo
-  # default which matches the cache fallback.
   CARGO_HOME: "{{ .Env.CARGO_HOME }}"
 ```
 

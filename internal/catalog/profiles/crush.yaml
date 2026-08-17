@@ -8,6 +8,8 @@ command: ["crush"]
 tools:
   crush: latest
 mounts:
+  ~/.config/AGENTS.md:
+    source: ~/.config/AGENTS.md
   ~/.config/crush:
     source: ~/.config/crush
     create: true
