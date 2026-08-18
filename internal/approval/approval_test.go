@@ -842,7 +842,7 @@ func TestBenignMount(t *testing.T) {
 func TestBenignEnvName(t *testing.T) {
 	for _, n := range []string{
 		"DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DOCKER_HOST",
-		"HOME", "PATH", "TERM",
+		"HOME", "PATH", "TERM", "COLORTERM",
 	} {
 		if !isBenignEnvName(n) {
 			t.Errorf("%q should be in the benign env list", n)

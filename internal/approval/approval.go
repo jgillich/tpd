@@ -499,7 +499,8 @@ func isBenignMount(source string) bool {
 // prominent.
 var benignEnvNames = []string{
 	"DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME",
-	"XDG_DATA_HOME", "DOCKER_HOST", "HOME", "PATH", "TERM", "LANG",
+	"XDG_DATA_HOME", "DOCKER_HOST", "HOME", "PATH", "TERM", "COLORTERM",
+	"LANG",
 	"LC_ALL", "USER", "SHELL", "EDITOR", "PAGER",
 }
 
