@@ -1,6 +1,9 @@
 version: 1
 meta:
   description: Default launch policies with the common dev toolchain and a memory cap
+environment:
+  TERM: "{{ .Env.TERM }}"
+  COLORTERM: "{{ .Env.COLORTERM }}"
 packages:
   - autoconf
   - bsdextrautils
