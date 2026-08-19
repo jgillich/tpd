@@ -651,6 +651,9 @@ Default launch policies with the common dev toolchain and a memory cap
 version: 1
 meta:
   description: Default launch policies with the common dev toolchain and a memory cap
+environment:
+  TERM: "{{ .Env.TERM }}"
+  COLORTERM: "{{ .Env.COLORTERM }}"
 packages:
   - autoconf
   - bsdextrautils
@@ -1543,8 +1546,7 @@ meta:
 packages:
   - rustup
 caches:
-  # CARGO_HOME is fingerprinted; avoids rebuilds
-  cargo: '{{ or .Env.CARGO_HOME "~/.cargo" }}'
+  cargo: ~/.cargo
   rustup: ~/.rustup
   sccache: ~/.cache/sccache
 tools:
@@ -1553,7 +1555,7 @@ tools:
 environment:
   RUSTC_WRAPPER: sccache
   RUSTFLAGS: -C link-arg=-fuse-ld=mold
-  CARGO_HOME: "{{ .Env.CARGO_HOME }}"
+  CARGO_TARGET_DIR: /tmp
 ```
 
 </details>
